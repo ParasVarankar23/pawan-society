@@ -1,36 +1,362 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+pawan-society/
+│
+├── public/
+│   ├── images/
+│   │   ├── society-logo.png
+│   │   └── default-avatar.png
+│   ├── pdf/
+│   │   ├── bills/
+│   │   ├── receipts/
+│   │   └── reports/
+│   └── icons/
+│
+├── src/
+│   │
+│   ├── app/
+│   │   │
+│   │   ├── api/
+│   │   │   │
+│   │   │   ├── auth/
+│   │   │   │   ├── login/
+│   │   │   │   │   └── route.js
+│   │   │   │   │
+│   │   │   │   ├── logout/
+│   │   │   │   │   └── route.js
+│   │   │   │   │
+│   │   │   │   ├── me/
+│   │   │   │   │   └── route.js
+│   │   │   │   │
+│   │   │   │   ├── refresh/
+│   │   │   │   │   └── route.js
+│   │   │   │   │
+│   │   │   │   ├── change-password/
+│   │   │   │   │   └── route.js
+│   │   │   │   │
+│   │   │   │   ├── forgot-password/
+│   │   │   │   │   ├── send-otp/
+│   │   │   │   │   │   └── route.js
+│   │   │   │   │   │
+│   │   │   │   │   ├── verify-otp/
+│   │   │   │   │   │   └── route.js
+│   │   │   │   │   │
+│   │   │   │   │   └── reset/
+│   │   │   │   │       └── route.js
+│   │   │   │   │
+│   │   │   │   └── setup/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── society/
+│   │   │   │   └── route.js
+│   │   │   │
+│   │   │   ├── rooms/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── import/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── members/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── search/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.js
+│   │   │   │       └── ledger/
+│   │   │   │           └── route.js
+│   │   │   │
+│   │   │   ├── charges/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── water/
+│   │   │   │   ├── readings/
+│   │   │   │   │   ├── route.js
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       └── route.js
+│   │   │   │   └── rate/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── billing/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── generate/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── calculate/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── outstanding/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.js
+│   │   │   │       └── pdf/
+│   │   │   │           └── route.js
+│   │   │   │
+│   │   │   ├── penalties/
+│   │   │   │   ├── route.js
+│   │   │   │   └── config/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── payments/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── receipts/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.js
+│   │   │   │       └── pdf/
+│   │   │   │           └── route.js
+│   │   │   │
+│   │   │   ├── ledger/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── member/
+│   │   │   │   │   └── [memberId]/
+│   │   │   │   │       └── route.js
+│   │   │   │   └── room/
+│   │   │   │       └── [roomNo]/
+│   │   │   │           └── route.js
+│   │   │   │
+│   │   │   ├── expenses/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── categories/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── electricity/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── drinking-water/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── works/
+│   │   │   │   ├── route.js
+│   │   │   │   ├── categories/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── transactions/
+│   │   │   │   ├── route.js
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── cashbook/
+│   │   │   │   └── route.js
+│   │   │   │
+│   │   │   ├── reports/
+│   │   │   │   ├── daily/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── monthly/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── yearly/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── income/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── expenses/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── collection/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── outstanding/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── cashbook/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── audit/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── dashboard/
+│   │   │   │   └── route.js
+│   │   │   │
+│   │   │   ├── email/
+│   │   │   │   ├── bill/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── receipt/
+│   │   │   │   │   └── route.js
+│   │   │   │   ├── reminder/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── test/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── ai/
+│   │   │   │   ├── ocr/
+│   │   │   │   │   └── route.js
+│   │   │   │   └── status/
+│   │   │   │       └── route.js
+│   │   │   │
+│   │   │   ├── audit/
+│   │   │   │   └── route.js
+│   │   │   │
+│   │   │   └── cron/
+│   │   │       ├── daily-reminder/
+│   │   │       │   └── route.js
+│   │   │       └── monthly-billing/
+│   │   │           └── route.js
+│   │   │
+│   │   ├── login/
+│   │   │   └── page.jsx
+│   │   │
+│   │   ├── forgot-password/
+│   │   │   └── page.jsx
+│   │   │
+│   │   ├── reset-password/
+│   │   │   └── page.jsx
+│   │   │
+│   │   ├── dashboard/
+│   │   │   └── page.jsx
+│   │   │
+│   │   ├── members/
+│   │   ├── rooms/
+│   │   ├── water/
+│   │   ├── billing/
+│   │   ├── payments/
+│   │   ├── receipts/
+│   │   ├── ledger/
+│   │   ├── outstanding/
+│   │   ├── expenses/
+│   │   ├── electricity/
+│   │   ├── drinking-water/
+│   │   ├── works/
+│   │   ├── cashbook/
+│   │   ├── reports/
+│   │   ├── emails/
+│   │   ├── ai/
+│   │   ├── settings/
+│   │   ├── layout.jsx
+│   │   ├── page.jsx
+│   │   └── globals.css
+│   │
+│   ├── components/
+│   │   ├── auth/
+│   │   │   ├── LoginForm.jsx
+│   │   │   ├── ForgotPasswordForm.jsx
+│   │   │   ├── OtpForm.jsx
+│   │   │   ├── ResetPasswordForm.jsx
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── layout/
+│   │   ├── dashboard/
+│   │   ├── members/
+│   │   ├── rooms/
+│   │   ├── water/
+│   │   ├── billing/
+│   │   ├── payments/
+│   │   ├── receipts/
+│   │   ├── ledger/
+│   │   ├── expenses/
+│   │   ├── works/
+│   │   ├── cashbook/
+│   │   ├── reports/
+│   │   └── common/
+│   │
+│   ├── models/
+│   │   ├── Admin.js
+│   │   ├── PasswordResetOtp.js
+│   │   ├── RefreshSession.js
+│   │   ├── Society.js
+│   │   ├── Room.js
+│   │   ├── Member.js
+│   │   ├── ChargeMaster.js
+│   │   ├── WaterReading.js
+│   │   ├── Bill.js
+│   │   ├── PenaltyRule.js
+│   │   ├── Payment.js
+│   │   ├── Receipt.js
+│   │   ├── LedgerEntry.js
+│   │   ├── FinancialTransaction.js
+│   │   ├── ExpenseCategory.js
+│   │   ├── Expense.js
+│   │   ├── ElectricityBill.js
+│   │   ├── DrinkingWaterBill.js
+│   │   ├── SocietyWork.js
+│   │   ├── EmailLog.js
+│   │   ├── AuditLog.js
+│   │   └── Counter.js
+│   │
+│   ├── services/
+│   │   ├── authService.js
+│   │   ├── otpService.js
+│   │   ├── tokenService.js
+│   │   ├── refreshTokenService.js
+│   │   ├── passwordResetService.js
+│   │   ├── societyService.js
+│   │   ├── roomService.js
+│   │   ├── memberService.js
+│   │   ├── chargeService.js
+│   │   ├── waterService.js
+│   │   ├── billingService.js
+│   │   ├── penaltyService.js
+│   │   ├── paymentService.js
+│   │   ├── receiptService.js
+│   │   ├── ledgerService.js
+│   │   ├── transactionService.js
+│   │   ├── expenseService.js
+│   │   ├── electricityService.js
+│   │   ├── drinkingWaterService.js
+│   │   ├── societyWorkService.js
+│   │   ├── cashbookService.js
+│   │   ├── reportService.js
+│   │   ├── emailService.js
+│   │   └── auditService.js
+│   │
+│   ├── lib/
+│   │   ├── mongodb.js
+│   │   ├── auth.js
+│   │   ├── cookies.js
+│   │   ├── cron.js
+│   │   ├── validation.js
+│   │   ├── response.js
+│   │   │
+│   │   ├── calculations/
+│   │   │   ├── water.js
+│   │   │   ├── billing.js
+│   │   │   ├── penalty.js
+│   │   │   ├── outstanding.js
+│   │   │   └── balance.js
+│   │   │
+│   │   ├── accounting/
+│   │   │   ├── transaction.js
+│   │   │   ├── income.js
+│   │   │   ├── expense.js
+│   │   │   ├── ledger.js
+│   │   │   └── cashbook.js
+│   │   │
+│   │   ├── numbering/
+│   │   │   ├── billNumber.js
+│   │   │   └── receiptNumber.js
+│   │   │
+│   │   ├── pdf/
+│   │   │   ├── billPdf.js
+│   │   │   ├── receiptPdf.js
+│   │   │   └── reportPdf.js
+│   │   │
+│   │   ├── email/
+│   │   │   ├── transporter.js
+│   │   │   ├── billEmail.js
+│   │   │   ├── receiptEmail.js
+│   │   │   ├── reminderEmail.js
+│   │   │   └── otpEmail.js
+│   │   │
+│   │   └── gemini/
+│   │       ├── client.js
+│   │       └── ocr.js
+│   │
+│   └── constants/
+│       ├── paymentModes.js
+│       ├── transactionTypes.js
+│       ├── expenseCategories.js
+│       ├── workCategories.js
+│       └── statuses.js
+│
+├── .env.local
+├── .env.example
+├── .gitignore
+├── jsconfig.json
+├── next.config.mjs
+├── postcss.config.mjs
+├── package.json
+├── package-lock.json
+├── vercel.json
+└── README.md"# pawan-society" 
