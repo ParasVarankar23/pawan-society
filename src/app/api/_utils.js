@@ -5,7 +5,28 @@ export async function apiHandler(handler) {
   try {
     return await handler();
   } catch (error) {
-    console.error("API Error:", error);
+    const isDatabaseUnavailable =
+      error?.name ===
+      "MongooseServerSelectionError";
+
+    if (
+      isDatabaseUnavailable ||
+      !error.statusCode ||
+      error.statusCode >= 500
+    ) {
+      console.error("API Error:", error);
+    }
+
+    if (isDatabaseUnavailable) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Database unavailable. Add this computer's public IP to MongoDB Atlas Network Access, then try again.",
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json(
       {

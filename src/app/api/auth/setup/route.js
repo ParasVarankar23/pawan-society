@@ -1,62 +1,160 @@
+import { NextResponse } from "next/server";
+
+import connectDB from "@/lib/mongodb";
+import Admin from "@/models/Admin";
 import bcrypt from "bcryptjs";
 
-import {
-  apiHandler,
-  getJsonBody,
-  json,
-} from "@/app/api/_utils";
-
-import Admin from "@/models/Admin";
-import { connectDB } from "@/lib/mongodb";
-
 export async function POST(request) {
-  return apiHandler(async () => {
+  try {
     await connectDB();
 
-    const existing =
-      await Admin.countDocuments();
-
-    if (existing > 0) {
-      throw new Error(
-        "Admin setup has already been completed"
-      );
-    }
+    const body = await request.json();
 
     const {
       name,
       email,
       password,
-    } = await getJsonBody(request);
+    } = body;
 
-    if (!name || !email || !password) {
-      throw new Error(
-        "Name, email and password are required"
+    if (!name?.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Administrator name is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!email?.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Administrator email is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!password) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Password is required",
+        },
+        { status: 400 }
       );
     }
 
     if (password.length < 8) {
-      throw new Error(
-        "Password must contain at least 8 characters"
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Password must contain at least 8 characters",
+        },
+        { status: 400 }
+      );
+    }
+
+    const configuredEmail =
+      process.env.ADMIN_EMAIL?.toLowerCase();
+
+    if (
+      configuredEmail &&
+      email.toLowerCase() !==
+        configuredEmail
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "This email is not authorized to create the administrator account",
+        },
+        { status: 403 }
+      );
+    }
+
+    const existingAdmin =
+      await Admin.findOne({
+        email: email.toLowerCase(),
+      });
+
+    if (existingAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Administrator account already exists",
+        },
+        { status: 409 }
+      );
+    }
+
+    const existingAnyAdmin =
+      await Admin.exists({});
+
+    if (existingAnyAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Administrator account has already been configured",
+        },
+        { status: 409 }
       );
     }
 
     const passwordHash =
-      await bcrypt.hash(password, 12);
+      await bcrypt.hash(
+        password,
+        12
+      );
 
-    const admin = await Admin.create({
-      name,
-      email: email.toLowerCase().trim(),
-      passwordHash,
-      status: "ACTIVE",
-    });
+    const admin =
+      await Admin.create({
+        name: name.trim(),
+        email: email
+          .trim()
+          .toLowerCase(),
+        passwordHash,
+        status: "ACTIVE",
+        passwordChangedAt:
+          new Date(),
+      });
 
-    return json(
+    return NextResponse.json(
       {
-        id: admin._id,
+        success: true,
         message:
-          "Admin setup completed",
+          "Administrator account created successfully",
+        data: {
+          admin: {
+            id: admin._id,
+            name: admin.name,
+            email: admin.email,
+          },
+        },
       },
-      201
+      { status: 201 }
     );
-  });
+  } catch (error) {
+    console.error(
+      "Admin setup error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error.message ||
+          "Unable to create administrator account",
+      },
+      { status: 500 }
+    );
+  }
 }

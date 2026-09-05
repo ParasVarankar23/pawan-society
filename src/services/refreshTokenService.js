@@ -33,11 +33,11 @@ export async function refreshAccessToken({
   }
 
   const accessToken = await createAccessToken({
-    sub: session.adminId.toString(),
+    adminId: session.adminId,
   });
 
   const newRefreshToken = await createRefreshToken({
-    sub: session.adminId.toString(),
+    adminId: session.adminId,
   });
 
   const newHash = hashToken(newRefreshToken);

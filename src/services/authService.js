@@ -30,12 +30,12 @@ export async function loginAdmin({ email, password, userAgent, ipAddress }) {
   await admin.save();
 
   const accessToken = await createAccessToken({
-    sub: admin._id.toString(),
+    adminId: admin._id,
     email: admin.email,
   });
 
   const refreshToken = await createRefreshToken({
-    sub: admin._id.toString(),
+    adminId: admin._id,
   });
 
   const tokenHash = hashToken(refreshToken);

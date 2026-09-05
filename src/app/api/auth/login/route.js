@@ -35,15 +35,9 @@ export async function POST(request) {
       admin: result.admin,
     });
 
-    setAccessTokenCookie(
-      response,
-      result.accessToken
-    );
+    setAccessTokenCookie(response, result.accessToken);
 
-    setRefreshTokenCookie(
-      response,
-      result.refreshToken
-    );
+    setRefreshTokenCookie(response, result.refreshToken);
 
     return response;
   });

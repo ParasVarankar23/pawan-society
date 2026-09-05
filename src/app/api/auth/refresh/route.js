@@ -20,7 +20,10 @@ export async function POST(request) {
       await getRefreshTokenCookie();
 
     if (!refreshToken) {
-      throw new Error("Refresh token required");
+      const error =
+        new Error("Refresh token required");
+      error.statusCode = 401;
+      throw error;
     }
 
     const { userAgent, ipAddress } =
@@ -36,15 +39,9 @@ export async function POST(request) {
       message: "Token refreshed successfully",
     });
 
-    setAccessTokenCookie(
-      response,
-      result.accessToken
-    );
+    setAccessTokenCookie(response, result.accessToken);
 
-    setRefreshTokenCookie(
-      response,
-      result.refreshToken
-    );
+    setRefreshTokenCookie(response, result.refreshToken);
 
     return response;
   });

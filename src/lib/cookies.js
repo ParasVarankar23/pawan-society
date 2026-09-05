@@ -13,10 +13,8 @@ const baseCookieOptions = {
   path: "/",
 };
 
-export async function setAccessTokenCookie(token) {
-  const cookieStore = await cookies();
-
-  cookieStore.set(
+export function setAccessTokenCookie(response, token) {
+  response.cookies.set(
     ACCESS_TOKEN_COOKIE,
     token,
     {
@@ -26,10 +24,8 @@ export async function setAccessTokenCookie(token) {
   );
 }
 
-export async function setRefreshTokenCookie(token) {
-  const cookieStore = await cookies();
-
-  cookieStore.set(
+export function setRefreshTokenCookie(response, token) {
+  response.cookies.set(
     REFRESH_TOKEN_COOKIE,
     token,
     {
@@ -55,10 +51,8 @@ export async function getRefreshTokenCookie() {
   )?.value || null;
 }
 
-export async function clearAuthCookies() {
-  const cookieStore = await cookies();
-
-  cookieStore.set(
+export function clearAuthCookies(response) {
+  response.cookies.set(
     ACCESS_TOKEN_COOKIE,
     "",
     {
@@ -67,7 +61,7 @@ export async function clearAuthCookies() {
     }
   );
 
-  cookieStore.set(
+  response.cookies.set(
     REFRESH_TOKEN_COOKIE,
     "",
     {
