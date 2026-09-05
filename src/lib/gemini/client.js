@@ -13,3 +13,5 @@ export function requireGemini() {
 
   return process.env.GEMINI_API_KEY;
 }
+
+export const isGeminiAvailable = isGeminiConfigured;

@@ -26,3 +26,5 @@ export async function extractOCRData({
     imageProvided: Boolean(image),
   };
 }
+
+export const processOCR = extractOCRData;
