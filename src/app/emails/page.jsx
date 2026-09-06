@@ -1,28 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  CalendarDays,
-  Eye,
-  Hammer,
-  IndianRupee,
-  Plus,
+  CheckCircle2,
+  Mail,
   RefreshCw,
   Search,
-  WalletCards,
+  XCircle,
 } from "lucide-react";
 
 import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
 import api from "@/lib/apiClient";
-
-const formatCurrency = (value = 0) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(value) || 0);
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -31,37 +20,21 @@ const formatDate = (value) => {
 
   if (Number.isNaN(date.getTime())) return "-";
 
-  return date.toLocaleDateString("en-IN", {
+  return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
-const statusClass = (status) => {
-  const value = String(status || "").toUpperCase();
-
-  if (value === "COMPLETED") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-
-  if (value === "IN_PROGRESS") {
-    return "border-blue-200 bg-blue-50 text-blue-700";
-  }
-
-  if (value === "CANCELLED") {
-    return "border-red-200 bg-red-50 text-red-700";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-600";
-};
-
-export default function WorksPage() {
-  const [works, setWorks] = useState([]);
+export default function EmailsPage() {
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("ALL");
+  const [type, setType] = useState("ALL");
 
   const [toast, setToast] = useState({
     show: false,
@@ -76,29 +49,30 @@ export default function WorksPage() {
       message,
     });
 
-  async function loadWorks() {
+  async function loadEmails() {
     try {
       setRefreshing(true);
 
       const query =
-        category !== "ALL"
-          ? `?category=${encodeURIComponent(category)}`
+        type !== "ALL"
+          ? `?type=${encodeURIComponent(type)}`
           : "";
 
-      const response = await api.get(`/works${query}`);
+      const response = await api.get(`/email${query}`);
 
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
-          response?.data?.works ||
+          response?.data?.logs ||
           [];
 
-      setWorks(data);
+      setLogs(data);
     } catch (error) {
-      setWorks([]);
+      setLogs([]);
 
       showToast(
-        error?.message || "Failed to load society works.",
+        error?.message ||
+          "Failed to load email logs. Check the email logs API.",
         "error"
       );
     } finally {
@@ -108,54 +82,35 @@ export default function WorksPage() {
   }
 
   useEffect(() => {
-    loadWorks();
-  }, [category]);
+    loadEmails();
+  }, [type]);
 
-  const categories = useMemo(() => {
-    const values = works
-      .map((item) =>
-        item.category?.name ||
-        item.category ||
-        ""
-      )
-      .filter(Boolean);
-
-    return [...new Set(values)];
-  }, [works]);
-
-  const filteredWorks = useMemo(() => {
+  const filteredLogs = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return works;
+    if (!query) return logs;
 
-    return works.filter((item) =>
+    return logs.filter((item) =>
       [
-        item.workName,
-        item.category?.name,
-        item.category,
-        item.vendorName,
-        item.description,
-        item.billNumber,
+        item.recipient,
+        item.subject,
+        item.type,
+        item.reference,
         item.status,
-        item.paymentStatus,
       ]
         .join(" ")
         .toLowerCase()
         .includes(query)
     );
-  }, [works, search]);
+  }, [logs, search]);
 
-  const totalEstimated = filteredWorks.reduce(
-    (sum, item) =>
-      sum + Number(item.estimatedCost || 0),
-    0
-  );
+  const sentCount = filteredLogs.filter(
+    (item) => item.status === "SENT"
+  ).length;
 
-  const totalActual = filteredWorks.reduce(
-    (sum, item) =>
-      sum + Number(item.actualCost || 0),
-    0
-  );
+  const failedCount = filteredLogs.filter(
+    (item) => item.status === "FAILED"
+  ).length;
 
   return (
     <AppShell>
@@ -174,73 +129,63 @@ export default function WorksPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600 text-white">
-              <Hammer size={23} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+              <Mail size={23} />
             </div>
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Society Management
+                Communication
               </p>
 
               <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">
-                Society Works
+                Emails
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
-                Manage repairs, construction and maintenance works
+                Monitor bills, receipts, reminders and email delivery
               </p>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={loadWorks}
-              disabled={refreshing}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
-            >
-              <RefreshCw
-                size={17}
-                className={refreshing ? "animate-spin" : ""}
-              />
-              Refresh
-            </button>
-
-            <Link
-              href="/works/add"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white"
-            >
-              <Plus size={17} />
-              Add Work
-            </Link>
-          </div>
+          <button
+            onClick={loadEmails}
+            disabled={refreshing}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
+          >
+            <RefreshCw
+              size={17}
+              className={refreshing ? "animate-spin" : ""}
+            />
+            Refresh
+          </button>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total Works</p>
+            <p className="text-sm text-slate-500">Total Emails</p>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {filteredWorks.length}
+              {filteredLogs.length}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Estimated Cost</p>
-            <p className="mt-2 text-2xl font-bold text-violet-600">
-              {formatCurrency(totalEstimated)}
+            <p className="text-sm text-slate-500">Sent</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-600">
+              {sentCount}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Actual Cost</p>
+            <p className="text-sm text-slate-500">Failed</p>
             <p className="mt-2 text-2xl font-bold text-red-600">
-              {formatCurrency(totalActual)}
+              {failedCount}
             </p>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+          <div className="grid gap-3 lg:grid-cols-[1fr_200px]">
             <div className="relative">
               <Search
                 size={18}
@@ -250,47 +195,39 @@ export default function WorksPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search work, vendor, bill number..."
+                placeholder="Search recipient, subject, reference..."
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none focus:border-indigo-500"
               />
             </div>
 
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
               className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-500"
             >
-              <option value="ALL">All Categories</option>
-
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+              <option value="ALL">All Types</option>
+              <option value="BILL">Bill</option>
+              <option value="RECEIPT">Receipt</option>
+              <option value="REMINDER">Reminder</option>
+              <option value="OTP">OTP</option>
+              <option value="REPORT">Report</option>
+              <option value="TEST">Test</option>
+              <option value="OTHER">Other</option>
             </select>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-bold text-slate-900">
-              Society Works Register
-            </h2>
-          </div>
-
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px]">
+            <table className="w-full min-w-[1050px]">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold uppercase text-slate-500">
-                  <th className="px-5 py-4">Work</th>
-                  <th className="px-5 py-4">Category</th>
-                  <th className="px-5 py-4">Vendor</th>
-                  <th className="px-5 py-4">Start</th>
-                  <th className="px-5 py-4">Completion</th>
-                  <th className="px-5 py-4 text-right">Estimated</th>
-                  <th className="px-5 py-4 text-right">Actual</th>
+                  <th className="px-5 py-4">Date</th>
+                  <th className="px-5 py-4">Recipient</th>
+                  <th className="px-5 py-4">Type</th>
+                  <th className="px-5 py-4">Subject</th>
+                  <th className="px-5 py-4">Reference</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
 
@@ -298,86 +235,63 @@ export default function WorksPage() {
                 {loading ? (
                   Array.from({ length: 6 }).map((_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 9 }).map((__, cell) => (
+                      {Array.from({ length: 6 }).map((__, cell) => (
                         <td key={cell} className="px-5 py-5">
                           <div className="h-4 animate-pulse rounded bg-slate-100" />
                         </td>
                       ))}
                     </tr>
                   ))
-                ) : filteredWorks.length === 0 ? (
+                ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center">
-                      <WalletCards
+                    <td colSpan={6} className="px-5 py-16 text-center">
+                      <Mail
                         size={40}
                         className="mx-auto text-slate-300"
                       />
                       <p className="mt-4 font-semibold text-slate-700">
-                        No society works found
+                        No email logs found
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  filteredWorks.map((work) => (
+                  filteredLogs.map((item) => (
                     <tr
-                      key={work._id}
+                      key={item._id}
                       className="hover:bg-slate-50"
                     >
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-slate-800">
-                          {work.workName || "-"}
-                        </p>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(item.sentAt || item.createdAt)}
+                      </td>
 
-                        {work.description && (
-                          <p className="mt-1 max-w-[240px] truncate text-xs text-slate-400">
-                            {work.description}
-                          </p>
+                      <td className="px-5 py-4 font-semibold text-slate-800">
+                        {item.recipient || "-"}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {item.type || "-"}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {item.subject || "-"}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {item.reference || "-"}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {item.status === "SENT" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                            <CheckCircle2 size={13} />
+                            Sent
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                            <XCircle size={13} />
+                            {item.status || "Failed"}
+                          </span>
                         )}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {work.category?.name ||
-                          work.category ||
-                          "-"}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {work.vendorName || "-"}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {formatDate(work.startDate)}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {formatDate(work.completionDate)}
-                      </td>
-
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
-                        {formatCurrency(work.estimatedCost)}
-                      </td>
-
-                      <td className="px-5 py-4 text-right font-bold text-red-600">
-                        {formatCurrency(work.actualCost)}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(
-                            work.status
-                          )}`}
-                        >
-                          {work.status || "PLANNED"}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-center">
-                        <Link
-                          href={`/works/${work._id}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
-                        >
-                          <Eye size={16} />
-                        </Link>
                       </td>
                     </tr>
                   ))

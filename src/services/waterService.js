@@ -19,7 +19,7 @@ export async function calculateReading({
     previousReading,
     currentReading,
     ratePerUnit,
-  });
+  }).amount;
 
   return {
     units,

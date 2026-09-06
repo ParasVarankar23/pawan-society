@@ -322,7 +322,7 @@ export default function LoginPage() {
                         {/* Mobile branding */}
                         <div className="mb-9 text-center lg:hidden">
                             <Image
-                                src="/logo.png"
+                                src="/pawan.png"
                                 alt="Pawan Society"
                                 width={512}
                                 height={256}

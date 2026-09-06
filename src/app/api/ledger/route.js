@@ -6,6 +6,7 @@ import {
 } from "@/app/api/_utils";
 
 import {
+  getLedgerEntries,
   getMemberLedger,
   getRoomLedger,
 } from "@/services/ledgerService";
@@ -31,8 +32,13 @@ export async function GET(request) {
         );
       }
 
-      throw new Error(
-        "memberId or roomId is required"
+      return json(
+        await getLedgerEntries({
+          transactionType:
+            query.transactionType,
+          fromDate: query.fromDate,
+          toDate: query.toDate,
+        })
       );
     })
   );

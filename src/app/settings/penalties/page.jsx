@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Percent,
   RefreshCw,
@@ -23,6 +24,16 @@ const initialForm = {
   effectiveTo: "",
   notes: "",
 };
+
+function dateInputValue(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? ""
+    : date.toISOString().split("T")[0];
+}
 
 export default function PenaltySettingsPage() {
   const [form, setForm] = useState(initialForm);
@@ -58,7 +69,13 @@ export default function PenaltySettingsPage() {
 
       setForm((current) => ({
         ...current,
-        ...data,
+        ...(data || {}),
+        effectiveFrom: dateInputValue(
+          data?.effectiveFrom
+        ),
+        effectiveTo: dateInputValue(
+          data?.effectiveTo
+        ),
       }));
     } catch (error) {
       showToast(
@@ -128,6 +145,13 @@ export default function PenaltySettingsPage() {
       />
 
       <div className="space-y-6">
+        <Link
+          href="/settings"
+          className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-slate-950"
+        >
+          ← Back to Settings
+        </Link>
+
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-white">
             <ShieldAlert size={23} />
@@ -174,11 +198,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-rate-type" className="mb-2 block text-sm font-semibold text-slate-700">
                 Rate Type
               </label>
 
               <select
+                id="penalty-rate-type"
                 value={form.rateType}
                 onChange={(e) =>
                   updateField(
@@ -198,7 +223,7 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-rate" className="mb-2 block text-sm font-semibold text-slate-700">
                 Rate
               </label>
 
@@ -209,6 +234,7 @@ export default function PenaltySettingsPage() {
                 />
 
                 <input
+                  id="penalty-rate"
                   type="number"
                   min="0"
                   step="0.01"
@@ -225,11 +251,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="grace-period-days" className="mb-2 block text-sm font-semibold text-slate-700">
                 Grace Period (Days)
               </label>
 
               <input
+                id="grace-period-days"
                 type="number"
                 min="0"
                 value={form.gracePeriodDays}
@@ -244,11 +271,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="calculation-type" className="mb-2 block text-sm font-semibold text-slate-700">
                 Calculation Type
               </label>
 
               <select
+                id="calculation-type"
                 value={form.calculationType}
                 onChange={(e) =>
                   updateField(
@@ -271,11 +299,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-frequency" className="mb-2 block text-sm font-semibold text-slate-700">
                 Frequency
               </label>
 
               <select
+                id="penalty-frequency"
                 value={form.frequency}
                 onChange={(e) =>
                   updateField(
@@ -298,11 +327,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-effective-from" className="mb-2 block text-sm font-semibold text-slate-700">
                 Effective From
               </label>
 
               <input
+                id="penalty-effective-from"
                 type="date"
                 value={form.effectiveFrom || ""}
                 onChange={(e) =>
@@ -316,11 +346,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-effective-to" className="mb-2 block text-sm font-semibold text-slate-700">
                 Effective To
               </label>
 
               <input
+                id="penalty-effective-to"
                 type="date"
                 value={form.effectiveTo || ""}
                 onChange={(e) =>
@@ -334,11 +365,12 @@ export default function PenaltySettingsPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="penalty-notes" className="mb-2 block text-sm font-semibold text-slate-700">
                 Notes
               </label>
 
               <textarea
+                id="penalty-notes"
                 value={form.notes || ""}
                 onChange={(e) =>
                   updateField(

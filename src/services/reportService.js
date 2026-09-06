@@ -117,17 +117,25 @@ export async function getCollectionReport({
   };
 }
 
-export async function getOutstandingReport() {
+export async function getOutstandingReport({
+  billingMonth,
+} = {}) {
   await connectDB();
 
-  const bills = await Bill.find({
+  const query = {
     status: {
       $in: ["UNPAID", "PARTIAL", "OVERDUE", "GENERATED"],
     },
     balanceAmount: {
       $gt: 0,
     },
-  })
+  };
+
+  if (billingMonth) {
+    query.billingMonth = billingMonth;
+  }
+
+  const bills = await Bill.find(query)
     .populate("roomId")
     .populate("memberId")
     .sort({ billingMonth: 1 })

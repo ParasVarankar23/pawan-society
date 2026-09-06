@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CalendarDays,
+  Eye,
+  Hammer,
   IndianRupee,
-  Lightbulb,
+  Plus,
   RefreshCw,
   Search,
   WalletCards,
@@ -35,12 +38,30 @@ const formatDate = (value) => {
   });
 };
 
-export default function ElectricityPage() {
-  const [bills, setBills] = useState([]);
+const statusClass = (status) => {
+  const value = String(status || "").toUpperCase();
+
+  if (value === "COMPLETED") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (value === "IN_PROGRESS") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+
+  if (value === "CANCELLED") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-600";
+};
+
+export default function WorksPage() {
+  const [works, setWorks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [billingMonth, setBillingMonth] = useState("");
+  const [category, setCategory] = useState("ALL");
 
   const [toast, setToast] = useState({
     show: false,
@@ -55,30 +76,29 @@ export default function ElectricityPage() {
       message,
     });
 
-  async function loadBills() {
+  async function loadWorks() {
     try {
       setRefreshing(true);
 
-      const query = billingMonth
-        ? `?billingMonth=${encodeURIComponent(billingMonth)}`
-        : "";
+      const query =
+        category !== "ALL"
+          ? `?category=${encodeURIComponent(category)}`
+          : "";
 
-      const response = await api.get(
-        `/electricity${query}`
-      );
+      const response = await api.get(`/works${query}`);
 
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
-          response?.data?.bills ||
+          response?.data?.works ||
           [];
 
-      setBills(data);
+      setWorks(data);
     } catch (error) {
-      setBills([]);
+      setWorks([]);
 
       showToast(
-        error?.message || "Failed to load electricity bills.",
+        error?.message || "Failed to load society works.",
         "error"
       );
     } finally {
@@ -88,30 +108,52 @@ export default function ElectricityPage() {
   }
 
   useEffect(() => {
-    loadBills();
-  }, [billingMonth]);
+    loadWorks();
+  }, [category]);
 
-  const filteredBills = useMemo(() => {
+  const categories = useMemo(() => {
+    const values = works
+      .map((item) =>
+        item.category?.name ||
+        item.category ||
+        ""
+      )
+      .filter(Boolean);
+
+    return [...new Set(values)];
+  }, [works]);
+
+  const filteredWorks = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return bills;
+    if (!query) return works;
 
-    return bills.filter((bill) =>
+    return works.filter((item) =>
       [
-        bill.billNumber,
-        bill.billingMonth,
-        bill.referenceNumber,
-        bill.paymentMode,
-        bill.remarks,
+        item.workName,
+        item.category?.name,
+        item.category,
+        item.vendorName,
+        item.description,
+        item.billNumber,
+        item.status,
+        item.paymentStatus,
       ]
         .join(" ")
         .toLowerCase()
         .includes(query)
     );
-  }, [bills, search]);
+  }, [works, search]);
 
-  const totalAmount = filteredBills.reduce(
-    (sum, bill) => sum + Number(bill.amount || 0),
+  const totalEstimated = filteredWorks.reduce(
+    (sum, item) =>
+      sum + Number(item.estimatedCost || 0),
+    0
+  );
+
+  const totalActual = filteredWorks.reduce(
+    (sum, item) =>
+      sum + Number(item.actualCost || 0),
     0
   );
 
@@ -132,50 +174,67 @@ export default function ElectricityPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-white">
-              <Lightbulb size={23} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600 text-white">
+              <Hammer size={23} />
             </div>
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Society Expenses
+                Society Management
               </p>
 
               <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">
-                Electricity
+                Society Works
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
-                Manage society electricity bills and payments
+                Manage repairs, construction and maintenance works
               </p>
             </div>
           </div>
 
-          <button
-            onClick={loadBills}
-            disabled={refreshing}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
-          >
-            <RefreshCw
-              size={17}
-              className={refreshing ? "animate-spin" : ""}
-            />
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={loadWorks}
+              disabled={refreshing}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
+            >
+              <RefreshCw
+                size={17}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              Refresh
+            </button>
+
+            <Link
+              href="/works/add"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white"
+            >
+              <Plus size={17} />
+              Add Work
+            </Link>
+          </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total Bills</p>
+            <p className="text-sm text-slate-500">Total Works</p>
             <p className="mt-2 text-2xl font-bold text-slate-900">
-              {filteredBills.length}
+              {filteredWorks.length}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total Amount</p>
-            <p className="mt-2 text-2xl font-bold text-amber-600">
-              {formatCurrency(totalAmount)}
+            <p className="text-sm text-slate-500">Estimated Cost</p>
+            <p className="mt-2 text-2xl font-bold text-violet-600">
+              {formatCurrency(totalEstimated)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Actual Cost</p>
+            <p className="mt-2 text-2xl font-bold text-red-600">
+              {formatCurrency(totalActual)}
             </p>
           </div>
         </div>
@@ -191,48 +250,47 @@ export default function ElectricityPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search bill number, reference..."
+                placeholder="Search work, vendor, bill number..."
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none focus:border-indigo-500"
               />
             </div>
 
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-500"
+            >
+              <option value="ALL">All Categories</option>
 
-              <input
-                type="month"
-                value={billingMonth}
-                onChange={(e) =>
-                  setBillingMonth(e.target.value)
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="font-bold text-slate-900">
-              Electricity Register
+              Society Works Register
             </h2>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px]">
+            <table className="w-full min-w-[1200px]">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold uppercase text-slate-500">
-                  <th className="px-5 py-4">Bill Date</th>
-                  <th className="px-5 py-4">Bill No.</th>
-                  <th className="px-5 py-4">Month</th>
-                  <th className="px-5 py-4">Due Date</th>
-                  <th className="px-5 py-4 text-right">Amount</th>
-                  <th className="px-5 py-4 text-right">Paid</th>
+                  <th className="px-5 py-4">Work</th>
+                  <th className="px-5 py-4">Category</th>
+                  <th className="px-5 py-4">Vendor</th>
+                  <th className="px-5 py-4">Start</th>
+                  <th className="px-5 py-4">Completion</th>
+                  <th className="px-5 py-4 text-right">Estimated</th>
+                  <th className="px-5 py-4 text-right">Actual</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Payment</th>
+                  <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
 
@@ -240,63 +298,86 @@ export default function ElectricityPage() {
                 {loading ? (
                   Array.from({ length: 6 }).map((_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 8 }).map((__, cell) => (
+                      {Array.from({ length: 9 }).map((__, cell) => (
                         <td key={cell} className="px-5 py-5">
                           <div className="h-4 animate-pulse rounded bg-slate-100" />
                         </td>
                       ))}
                     </tr>
                   ))
-                ) : filteredBills.length === 0 ? (
+                ) : filteredWorks.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-16 text-center">
+                    <td colSpan={9} className="px-5 py-16 text-center">
                       <WalletCards
                         size={40}
                         className="mx-auto text-slate-300"
                       />
                       <p className="mt-4 font-semibold text-slate-700">
-                        No electricity bills found
+                        No society works found
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  filteredBills.map((bill) => (
+                  filteredWorks.map((work) => (
                     <tr
-                      key={bill._id}
+                      key={work._id}
                       className="hover:bg-slate-50"
                     >
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-800">
+                          {work.workName || "-"}
+                        </p>
+
+                        {work.description && (
+                          <p className="mt-1 max-w-[240px] truncate text-xs text-slate-400">
+                            {work.description}
+                          </p>
+                        )}
+                      </td>
+
                       <td className="px-5 py-4 text-sm text-slate-600">
-                        {formatDate(bill.billDate)}
-                      </td>
-
-                      <td className="px-5 py-4 font-semibold text-indigo-600">
-                        {bill.billNumber || "-"}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {bill.billingMonth || "-"}
+                        {work.category?.name ||
+                          work.category ||
+                          "-"}
                       </td>
 
                       <td className="px-5 py-4 text-sm text-slate-600">
-                        {formatDate(bill.dueDate)}
+                        {work.vendorName || "-"}
                       </td>
 
-                      <td className="px-5 py-4 text-right font-bold text-slate-800">
-                        {formatCurrency(bill.amount)}
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(work.startDate)}
                       </td>
 
-                      <td className="px-5 py-4 text-right font-semibold text-emerald-600">
-                        {formatCurrency(bill.paidAmount)}
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(work.completionDate)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {formatCurrency(work.estimatedCost)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-bold text-red-600">
+                        {formatCurrency(work.actualCost)}
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600">
-                          {bill.status || "UNPAID"}
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(
+                            work.status
+                          )}`}
+                        >
+                          {work.status || "PLANNED"}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {bill.paymentMode || "-"}
+                      <td className="px-5 py-4 text-center">
+                        <Link
+                          href={`/works/${work._id}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                          <Eye size={16} />
+                        </Link>
                       </td>
                     </tr>
                   ))

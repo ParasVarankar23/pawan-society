@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -133,6 +134,9 @@ export default function CashBookReportPage() {
       />
 
       <div className="space-y-6">
+        <Link href="/reports" className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-slate-950">
+          ← Back to Reports
+        </Link>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">

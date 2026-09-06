@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   CalendarDays,
@@ -144,6 +145,9 @@ export default function OutstandingReportPage() {
       />
 
       <div className="space-y-6">
+        <Link href="/reports" className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-slate-950">
+          ← Back to Reports
+        </Link>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-600 text-white">

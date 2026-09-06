@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   FileCog,
   Hash,
+  Pencil,
   RefreshCw,
   Save,
 } from "lucide-react";
@@ -22,6 +24,7 @@ export default function NumberingSettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const [toast, setToast] = useState({
     show: false,
@@ -93,6 +96,7 @@ export default function NumberingSettingsPage() {
       showToast(
         "Numbering settings saved successfully."
       );
+      setEditing(false);
     } catch (error) {
       showToast(
         error?.message ||
@@ -119,6 +123,13 @@ export default function NumberingSettingsPage() {
       />
 
       <div className="space-y-6">
+        <Link
+          href="/settings"
+          className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-slate-950"
+        >
+          ← Back to Settings
+        </Link>
+
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
             <FileCog size={23} />
@@ -129,9 +140,22 @@ export default function NumberingSettingsPage() {
               Settings
             </p>
 
-            <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">
-              Numbering Settings
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">
+                Numbering Settings
+              </h1>
+              {!editing && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  disabled={loading}
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <Pencil size={15} />
+                  Edit
+                </button>
+              )}
+            </div>
 
             <p className="mt-1 text-sm text-slate-500">
               Configure bill and receipt numbering.
@@ -145,7 +169,7 @@ export default function NumberingSettingsPage() {
         >
           <div className="grid gap-5 p-5 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="bill-prefix" className="mb-2 block text-sm font-semibold text-slate-700">
                 Bill Prefix
               </label>
 
@@ -156,6 +180,7 @@ export default function NumberingSettingsPage() {
                 />
 
                 <input
+                  id="bill-prefix"
                   value={form.billPrefix}
                   onChange={(e) =>
                     updateField(
@@ -163,13 +188,14 @@ export default function NumberingSettingsPage() {
                       e.target.value
                     )
                   }
+                  disabled={loading || !editing}
                   className="h-11 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="receipt-prefix" className="mb-2 block text-sm font-semibold text-slate-700">
                 Receipt Prefix
               </label>
 
@@ -180,6 +206,7 @@ export default function NumberingSettingsPage() {
                 />
 
                 <input
+                  id="receipt-prefix"
                   value={form.receiptPrefix}
                   onChange={(e) =>
                     updateField(
@@ -187,17 +214,19 @@ export default function NumberingSettingsPage() {
                       e.target.value
                     )
                   }
+                  disabled={loading || !editing}
                   className="h-11 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="bill-sequence" className="mb-2 block text-sm font-semibold text-slate-700">
                 Bill Starting Sequence
               </label>
 
               <input
+                id="bill-sequence"
                 type="number"
                 min="1"
                 value={form.billSequence}
@@ -207,16 +236,18 @@ export default function NumberingSettingsPage() {
                     e.target.value
                   )
                 }
+                disabled={loading || !editing}
                 className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="receipt-sequence" className="mb-2 block text-sm font-semibold text-slate-700">
                 Receipt Starting Sequence
               </label>
 
               <input
+                id="receipt-sequence"
                 type="number"
                 min="1"
                 value={form.receiptSequence}
@@ -226,6 +257,7 @@ export default function NumberingSettingsPage() {
                     e.target.value
                   )
                 }
+                disabled={loading || !editing}
                 className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-500"
               />
             </div>
@@ -234,18 +266,30 @@ export default function NumberingSettingsPage() {
           <div className="border-t border-slate-100 bg-slate-50 p-5">
             <p className="text-sm leading-6 text-slate-600">
               Bill and receipt numbers should ultimately be generated
-              through the existing atomic <strong>Counter</strong>
+              through the existing atomic <strong>Counter</strong>{" "}
               collection. Do not generate numbers with a client-side
               counter.
             </p>
           </div>
 
-          <div className="flex justify-end border-t border-slate-100 p-5">
-            <button
-              type="submit"
-              disabled={saving || loading}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-60"
-            >
+          {editing && (
+            <div className="flex justify-end gap-3 border-t border-slate-100 p-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  loadSettings();
+                }}
+                disabled={saving}
+                className="inline-flex h-11 items-center rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || loading}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-60"
+              >
               {saving ? (
                 <RefreshCw
                   size={17}
@@ -256,8 +300,9 @@ export default function NumberingSettingsPage() {
               )}
 
               {saving ? "Saving..." : "Save Numbering"}
-            </button>
-          </div>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </AppShell>
