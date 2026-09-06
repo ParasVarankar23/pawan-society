@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
   CalendarDays,
+  IndianRupee,
   RefreshCw,
+  Search,
   WalletCards,
 } from "lucide-react";
 
@@ -34,11 +34,12 @@ const formatDate = (value) => {
   });
 };
 
-export default function CashBookReportPage() {
+export default function IncomeReportPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -67,14 +68,14 @@ export default function CashBookReportPage() {
       const query = params.toString();
 
       const response = await api.get(
-        `/reports/cashbook${query ? `?${query}` : ""}`
+        `/reports/income${query ? `?${query}` : ""}`
       );
 
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
+          response?.data?.income ||
           response?.data?.transactions ||
-          response?.data?.cashbook ||
           [];
 
       setItems(data);
@@ -82,7 +83,7 @@ export default function CashBookReportPage() {
       setItems([]);
 
       showToast(
-        error?.message || "Failed to load cash book report.",
+        error?.message || "Failed to load income report.",
         "error"
       );
     } finally {
@@ -95,28 +96,31 @@ export default function CashBookReportPage() {
     loadReport();
   }, [fromDate, toDate]);
 
-  const summary = useMemo(() => {
-    let income = 0;
-    let expense = 0;
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    items.forEach((item) => {
-      const amount = Number(item.amount || 0);
+    if (!query) return items;
 
-      if (
-        String(item.type || "").toUpperCase() === "INCOME"
-      ) {
-        income += amount;
-      } else {
-        expense += amount;
-      }
-    });
+    return items.filter((item) =>
+      [
+        item.description,
+        item.category,
+        item.category?.name,
+        item.roomNumber,
+        item.memberName,
+        item.referenceNumber,
+        item.paymentMode,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [items, search]);
 
-    return {
-      income,
-      expense,
-      balance: income - expense,
-    };
-  }, [items]);
+  const total = filteredItems.reduce(
+    (sum, item) => sum + Number(item.amount || 0),
+    0
+  );
 
   return (
     <AppShell>
@@ -140,11 +144,11 @@ export default function CashBookReportPage() {
             </p>
 
             <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">
-              Cash Book Report
+              Income Report
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Complete income and expense cash book.
+              Member payments and society income.
             </p>
           </div>
 
@@ -161,67 +165,57 @@ export default function CashBookReportPage() {
           </button>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-        </div>
-
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">
-              Income
+              Income Records
+            </p>
+
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {filteredItems.length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2">
+            <p className="text-sm text-slate-500">
+              Total Income
             </p>
 
             <p className="mt-2 text-2xl font-bold text-emerald-600">
-              {formatCurrency(summary.income)}
+              {formatCurrency(total)}
             </p>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">
-              Expenses
-            </p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+            <div className="relative">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-            <p className="mt-2 text-2xl font-bold text-red-600">
-              {formatCurrency(summary.expense)}
-            </p>
-          </div>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search member, room, reference..."
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">
-              Net Balance
-            </p>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-500"
+            />
 
-            <p className="mt-2 text-2xl font-bold text-indigo-600">
-              {formatCurrency(summary.balance)}
-            </p>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-500"
+            />
           </div>
         </div>
 
@@ -230,18 +224,18 @@ export default function CashBookReportPage() {
             <table className="w-full min-w-[950px]">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-bold uppercase text-slate-500">
-                  <th className="px-5 py-4">Sr. No.</th>
                   <th className="px-5 py-4">Date</th>
+                  <th className="px-5 py-4">Room</th>
+                  <th className="px-5 py-4">Member</th>
                   <th className="px-5 py-4">Particular</th>
-                  <th className="px-5 py-4">Income</th>
-                  <th className="px-5 py-4">Expense</th>
-                  <th className="px-5 py-4">Balance</th>
+                  <th className="px-5 py-4">Payment</th>
+                  <th className="px-5 py-4 text-right">Amount</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  Array.from({ length: 7 }).map((_, index) => (
+                  Array.from({ length: 6 }).map((_, index) => (
                     <tr key={index}>
                       {Array.from({ length: 6 }).map((__, cell) => (
                         <td key={cell} className="px-5 py-5">
@@ -250,7 +244,7 @@ export default function CashBookReportPage() {
                       ))}
                     </tr>
                   ))
-                ) : items.length === 0 ? (
+                ) : filteredItems.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-5 py-16 text-center">
                       <WalletCards
@@ -259,60 +253,51 @@ export default function CashBookReportPage() {
                       />
 
                       <p className="mt-4 font-semibold text-slate-700">
-                        No cash book entries found
+                        No income records found
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, index) => {
-                    const isIncome =
-                      String(item.type || "").toUpperCase() ===
-                      "INCOME";
+                  filteredItems.map((item, index) => (
+                    <tr
+                      key={item._id || index}
+                      className="hover:bg-slate-50"
+                    >
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(
+                          item.transactionDate ||
+                            item.date ||
+                            item.paymentDate
+                        )}
+                      </td>
 
-                    return (
-                      <tr
-                        key={item._id || index}
-                        className="hover:bg-slate-50"
-                      >
-                        <td className="px-5 py-4 text-sm text-slate-500">
-                          {index + 1}
-                        </td>
+                      <td className="px-5 py-4 font-semibold text-slate-800">
+                        {item.roomNumber ||
+                          item.roomId?.roomNumber ||
+                          "-"}
+                      </td>
 
-                        <td className="px-5 py-4 text-sm text-slate-600">
-                          {formatDate(
-                            item.transactionDate ||
-                              item.date
-                          )}
-                        </td>
+                      <td className="px-5 py-4 font-semibold text-slate-800">
+                        {item.memberName ||
+                          item.memberId?.name ||
+                          "-"}
+                      </td>
 
-                        <td className="px-5 py-4 font-semibold text-slate-800">
-                          {item.description ||
-                            item.particular ||
-                            "-"}
-                        </td>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {item.description ||
+                          item.particular ||
+                          "-"}
+                      </td>
 
-                        <td className="px-5 py-4 font-semibold text-emerald-600">
-                          {isIncome
-                            ? formatCurrency(item.amount)
-                            : "-"}
-                        </td>
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {item.paymentMode || "-"}
+                      </td>
 
-                        <td className="px-5 py-4 font-semibold text-red-600">
-                          {!isIncome
-                            ? formatCurrency(item.amount)
-                            : "-"}
-                        </td>
-
-                        <td className="px-5 py-4 font-bold text-slate-800">
-                          {formatCurrency(
-                            item.balance ??
-                              item.runningBalance ??
-                              0
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
+                      <td className="px-5 py-4 text-right font-bold text-emerald-600">
+                        {formatCurrency(item.amount)}
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
