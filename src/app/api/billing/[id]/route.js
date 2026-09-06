@@ -6,6 +6,7 @@ import {
 } from "@/app/api/_utils";
 
 import {
+  deleteBill,
   getBillById,
 } from "@/services/billingService";
 
@@ -18,8 +19,9 @@ export async function GET(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
       const bill =
-        await getBillById(params.id);
+        await getBillById(id);
 
       if (!bill) {
         throw new Error("Bill not found");
@@ -37,10 +39,11 @@ export async function PUT(
   return apiHandler(() =>
     authenticated(async () => {
       await connectDB();
+      const { id } = await params;
 
       const bill =
         await Bill.findByIdAndUpdate(
-          params.id,
+          id,
           {
             $set:
               await getJsonBody(request),
@@ -52,6 +55,19 @@ export async function PUT(
         );
 
       return json(bill);
+    })
+  );
+}
+
+export async function DELETE(
+  request,
+  { params }
+) {
+  return apiHandler(() =>
+    authenticated(async () => {
+      const { id } = await params;
+
+      return json(await deleteBill(id));
     })
   );
 }

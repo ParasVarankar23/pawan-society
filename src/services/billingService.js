@@ -160,3 +160,15 @@ export async function getBillById(id) {
     .populate("memberId")
     .lean();
 }
+
+export async function deleteBill(id) {
+  await connectDB();
+
+  const bill = await Bill.findByIdAndDelete(id);
+
+  if (!bill) {
+    throw new Error("Bill not found");
+  }
+
+  return bill;
+}

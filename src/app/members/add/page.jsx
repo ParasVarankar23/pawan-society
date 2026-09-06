@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useEffect,
   useMemo,
   useState,
@@ -724,7 +725,7 @@ export default function AddMemberPage({
                 </label>
 
                 <div className="relative">
-                  <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                     <PhoneIcon />
                   </div>
 
@@ -733,7 +734,7 @@ export default function AddMemberPage({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    className="input pl-10"
+                    className="input input-with-icon"
                     value={form.mobile}
                     onChange={(event) =>
                       updateField(
@@ -758,7 +759,7 @@ export default function AddMemberPage({
                 </label>
 
                 <div className="relative">
-                  <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                     <PhoneIcon />
                   </div>
 
@@ -767,7 +768,7 @@ export default function AddMemberPage({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    className="input pl-10"
+                    className="input input-with-icon"
                     value={
                       form.alternateMobile
                     }
@@ -794,14 +795,14 @@ export default function AddMemberPage({
                 </label>
 
                 <div className="relative">
-                  <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                     <MailIcon />
                   </div>
 
                   <input
                     id="email"
                     type="email"
-                    className="input pl-10"
+                    className="input input-with-icon"
                     value={form.email}
                     onChange={(event) =>
                       updateField(

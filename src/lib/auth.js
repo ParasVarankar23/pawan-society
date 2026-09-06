@@ -53,7 +53,7 @@ export async function createAccessToken({
     process.env.ACCESS_TOKEN_EXPIRES_IN || "15m";
 
   return new SignJWT({
-    adminId,
+    adminId: adminId.toString(),
     email,
     type: "access",
   })
@@ -78,7 +78,7 @@ export async function createRefreshToken({
     process.env.REFRESH_TOKEN_EXPIRES_IN || "30d";
 
   return new SignJWT({
-    adminId,
+    adminId: adminId.toString(),
     type: "refresh",
   })
     .setProtectedHeader({
@@ -173,6 +173,13 @@ export async function getAuthUser() {
     await verifyAccessToken(token);
 
   if (!payload) {
+    return null;
+  }
+
+  if (
+    typeof payload.adminId !== "string" ||
+    !/^[a-f\d]{24}$/i.test(payload.adminId)
+  ) {
     return null;
   }
 

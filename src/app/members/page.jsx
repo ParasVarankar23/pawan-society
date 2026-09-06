@@ -288,6 +288,7 @@ function SummaryCard({
 
 function MemberCard({
   member,
+  onDelete,
 }) {
   const room =
     member.roomId?.roomNumber ||
@@ -386,6 +387,14 @@ function MemberCard({
           <EditIcon />
           Manage
         </Link>
+
+        <button
+          type="button"
+          onClick={() => onDelete(member)}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );
@@ -551,6 +560,17 @@ export default function MembersPage() {
     setSearch("");
     setTypeFilter("ALL");
     loadMembers("");
+  }
+
+  async function deleteMember(member) {
+    if (!window.confirm(`Delete ${member.name}?`)) return;
+
+    try {
+      await api.delete(`/members/${member._id}`);
+      await loadMembers(search);
+    } catch (err) {
+      setError(err.message || "Unable to delete member.");
+    }
   }
 
   return (
@@ -772,6 +792,7 @@ export default function MembersPage() {
                     <MemberCard
                       key={member._id}
                       member={member}
+                      onDelete={deleteMember}
                     />
                   )
                 )}
@@ -918,6 +939,14 @@ export default function MembersPage() {
                                   <EditIcon />
                                   Manage
                                 </Link>
+
+                                <button
+                                  type="button"
+                                  onClick={() => deleteMember(member)}
+                                  className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                >
+                                  Delete
+                                </button>
                               </div>
                             </td>
                           </tr>

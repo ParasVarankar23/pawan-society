@@ -13,8 +13,9 @@ export async function GET(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
       const bill =
-        await getBillById(params.id);
+        await getBillById(id);
 
       if (!bill) {
         throw new Error("Bill not found");

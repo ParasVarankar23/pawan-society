@@ -7,6 +7,7 @@ import {
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { Droplets, Settings2, Trash2 } from "lucide-react";
 
 import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
@@ -65,7 +66,10 @@ export default function BillingDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [bill, setBill] = useState(null);
+  const [chargeSettings, setChargeSettings] = useState(null);
+  const [waterReading, setWaterReading] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -74,7 +78,33 @@ export default function BillingDetailPage() {
     async function loadBill() {
       try {
         const result = await api.get(`/billing/${id}`);
-        setBill(result.data);
+        const loadedBill = result.data;
+        setBill(loadedBill);
+
+        const roomId = loadedBill.roomId?._id || loadedBill.roomId;
+        const month = loadedBill.billingMonth;
+        const [chargesResult, waterResult] = await Promise.all([
+          api.get("/charges"),
+          roomId && month
+            ? api.get(
+                `/water/readings?roomId=${encodeURIComponent(
+                  roomId
+                )}&billingMonth=${encodeURIComponent(month)}`
+              )
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        setChargeSettings(
+          chargesResult.data?.charge ||
+            chargesResult.data?.item ||
+            chargesResult.data ||
+            null
+        );
+
+        const readings = Array.isArray(waterResult.data)
+          ? waterResult.data
+          : waterResult.data?.readings || [];
+        setWaterReading(readings[0] || null);
       } catch (err) {
         setError(err.message || "Unable to load bill.");
       } finally {
@@ -85,7 +115,60 @@ export default function BillingDetailPage() {
     loadBill();
   }, [id]);
 
-  const charges = bill?.currentCharges || {};
+  async function handleDelete() {
+    if (!bill || !window.confirm(`Delete bill #${bill.billNumber}?`)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await api.delete(`/billing/${id}`);
+      router.push("/billing");
+    } catch (err) {
+      setError(err.message || "Unable to delete bill.");
+      setDeleting(false);
+    }
+  }
+
+  const storedCharges = bill?.currentCharges || {};
+  const storedChargesTotal = [
+    storedCharges.maintenance,
+    storedCharges.sinkingFund,
+    storedCharges.insurance,
+    storedCharges.educationFund,
+    storedCharges.parking,
+    storedCharges.nonOccupancy,
+    storedCharges.rentNoc,
+    storedCharges.water,
+    storedCharges.other,
+  ].reduce((total, value) => total + Number(value || 0), 0);
+
+  const charges = storedChargesTotal > 0
+    ? storedCharges
+    : {
+        maintenance: chargeSettings?.maintenance,
+        sinkingFund: chargeSettings?.sinkingFund,
+        insurance: chargeSettings?.insurance,
+        educationFund: chargeSettings?.educationFund,
+        parking: chargeSettings?.parking,
+        nonOccupancy: chargeSettings?.nonOccupancy,
+        rentNoc: chargeSettings?.rentNoc,
+        water: waterReading?.amount,
+        other: chargeSettings?.other,
+      };
+
+  const currentChargesTotal = [
+    charges.maintenance,
+    charges.sinkingFund,
+    charges.insurance,
+    charges.educationFund,
+    charges.parking,
+    charges.nonOccupancy,
+    charges.rentNoc,
+    charges.water,
+    charges.other,
+  ].reduce((total, value) => total + Number(value || 0), 0);
+
   const rows = [
     ["Previous Outstanding", bill?.previousOutstanding],
     ["Maintenance", charges.maintenance],
@@ -93,10 +176,92 @@ export default function BillingDetailPage() {
     ["Insurance", charges.insurance],
     ["Education Fund", charges.educationFund],
     ["Parking", charges.parking],
+    ["Non-Occupancy", charges.nonOccupancy],
+    ["Rent NOC", charges.rentNoc],
     ["Water", charges.water],
     ["Other Charges", charges.other],
     ["Penalty", bill?.penalty?.amount],
   ];
+
+  function downloadBillPdf() {
+    if (!bill) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 1600;
+    canvas.height = 2200;
+
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = "#0f172a";
+    context.font = "bold 54px Arial";
+    context.fillText("Pawan Society", 110, 130);
+
+    context.fillStyle = "#64748b";
+    context.font = "28px Arial";
+    context.fillText("Maintenance Bill", 110, 180);
+    context.fillText(`Bill #${bill.billNumber || "-"}`, 1100, 130);
+    context.fillText(formatMonth(bill.billingMonth), 1100, 180);
+
+    context.strokeStyle = "#cbd5e1";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(110, 230);
+    context.lineTo(1490, 230);
+    context.stroke();
+
+    context.fillStyle = "#334155";
+    context.font = "bold 30px Arial";
+    context.fillText(`Room: ${getRoom(bill)}`, 110, 300);
+    context.font = "30px Arial";
+    context.fillText(`Member: ${getMember(bill)}`, 110, 350);
+
+    let y = 460;
+    context.font = "30px Arial";
+    rows.forEach(([label, value]) => {
+      context.fillStyle = "#64748b";
+      context.fillText(label, 110, y);
+      context.fillStyle = "#0f172a";
+      context.textAlign = "right";
+      context.fillText(money(value), 1490, y);
+      context.textAlign = "left";
+      y += 70;
+    });
+
+    context.fillStyle = "#f1f5f9";
+    context.fillRect(70, y - 45, 1460, 100);
+    context.fillStyle = "#334155";
+    context.font = "bold 32px Arial";
+    context.fillText("Current Charges Total", 110, y + 15);
+    context.textAlign = "right";
+    context.fillText(money(currentChargesTotal), 1490, y + 15);
+    context.textAlign = "left";
+    y += 150;
+
+    context.fillStyle = "#020617";
+    context.fillRect(70, y - 55, 1460, 125);
+    context.fillStyle = "#ffffff";
+    context.font = "bold 38px Arial";
+    context.fillText("Total", 110, y + 20);
+    context.textAlign = "right";
+    context.fillText(money(getTotal(bill)), 1490, y + 20);
+    context.textAlign = "left";
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setError("Unable to create the bill download.");
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bill-${bill.billNumber || "download"}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }
 
   return (
     <AppShell>
@@ -142,20 +307,28 @@ export default function BillingDetailPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a
-                href={`/api/billing/${bill._id}/pdf`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={downloadBillPdf}
                 className="inline-flex h-10 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
               >
-                Download PDF
-              </a>
+                Download Bill
+              </button>
               <Link
                 href={`/payments/add?roomId=${bill.roomId?._id || bill.roomId}`}
                 className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Record Payment
               </Link>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+                {deleting ? "Deleting..." : "Delete Bill"}
+              </button>
             </div>
           </div>
 
@@ -187,6 +360,10 @@ export default function BillingDetailPage() {
                   <span className="font-semibold text-slate-800">{money(value)}</span>
                 </div>
               ))}
+              <div className="flex items-center justify-between bg-slate-50 px-5 py-3 text-sm">
+                <span className="font-semibold text-slate-600">Current Charges Total</span>
+                <span className="font-bold text-slate-900">{money(currentChargesTotal)}</span>
+              </div>
               <div className="flex items-center justify-between bg-slate-950 px-5 py-4">
                 <span className="font-bold text-white">Total</span>
                 <span className="text-xl font-bold text-white">{money(getTotal(bill))}</span>
@@ -199,6 +376,61 @@ export default function BillingDetailPage() {
                 <span className="font-bold text-slate-900">Balance Due</span>
                 <span className="text-xl font-bold text-orange-600">{money(bill.balanceAmount)}</span>
               </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Settings2 size={18} className="text-indigo-600" />
+                <h2 className="font-bold text-slate-900">Charge settings used</h2>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                {[
+                  ["Maintenance", chargeSettings?.maintenance],
+                  ["Sinking Fund", chargeSettings?.sinkingFund],
+                  ["Insurance", chargeSettings?.insurance],
+                  ["Education Fund", chargeSettings?.educationFund],
+                  ["Parking", chargeSettings?.parking],
+                  ["Water / Unit", chargeSettings?.waterRatePerUnit],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">{label}</p>
+                    <p className="mt-1 font-semibold text-slate-800">{money(value)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Droplets size={18} className="text-cyan-600" />
+                <h2 className="font-bold text-slate-900">Water reading used</h2>
+              </div>
+              {waterReading ? (
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Previous reading</p>
+                    <p className="mt-1 font-semibold text-slate-800">{waterReading.previousReading ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Current reading</p>
+                    <p className="mt-1 font-semibold text-slate-800">{waterReading.currentReading ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Units</p>
+                    <p className="mt-1 font-semibold text-slate-800">{waterReading.units ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">Water amount</p>
+                    <p className="mt-1 font-semibold text-slate-800">{money(waterReading.amount)}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                  No water reading was recorded for this room and billing month.
+                </p>
+              )}
             </div>
           </section>
 

@@ -13,8 +13,9 @@ export async function GET(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
       const receipt =
-        await getReceiptById(params.id);
+        await getReceiptById(id);
 
       if (!receipt) {
         throw new Error(

@@ -13,6 +13,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import AppShell from "@/components/layout/AppShell";
+
 export default function AIPage() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -86,8 +88,9 @@ export default function AIPage() {
     false;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-[1400px] space-y-6">
+    <AppShell>
+      <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
+        <div className="mx-auto max-w-[1400px] space-y-6">
 
         {/* Header */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -328,8 +331,9 @@ export default function AIPage() {
             AI is only an additional tool for document processing.
           </p>
         </div>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

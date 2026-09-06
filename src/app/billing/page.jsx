@@ -6,6 +6,8 @@ import {
   useState,
 } from "react";
 
+import { useRouter } from "next/navigation";
+
 import Link from "next/link";
 
 import AppShell from "@/components/layout/AppShell";
@@ -446,10 +448,183 @@ function getBillBalance(bill) {
   }
 
   return Math.max(
-    getBillTotal(bill) -
-      Number(bill.paidAmount || 0),
+    getBillTotal(bill) - Number(bill.paidAmount || 0),
     0
   );
+}
+
+function getBillCurrentCharges(bill) {
+  const charges = bill.currentCharges || {};
+  const storedTotal = [
+    charges.maintenance,
+    charges.sinkingFund,
+    charges.insurance,
+    charges.educationFund,
+    charges.parking,
+    charges.nonOccupancy,
+    charges.rentNoc,
+    charges.water,
+    charges.other,
+  ].reduce((total, value) => total + Number(value || 0), 0);
+
+  if (storedTotal > 0) return storedTotal;
+
+  return Math.max(
+    getBillTotal(bill) -
+      Number(bill.previousOutstanding || 0) -
+      Number(bill.penalty?.amount || 0),
+    0
+  );
+}
+
+async function downloadBillCanvas(bill) {
+  let charges = bill.currentCharges || {};
+  const storedTotal = [
+    charges.maintenance,
+    charges.sinkingFund,
+    charges.insurance,
+    charges.educationFund,
+    charges.parking,
+    charges.nonOccupancy,
+    charges.rentNoc,
+    charges.water,
+    charges.other,
+  ].reduce((total, value) => total + Number(value || 0), 0);
+
+  if (storedTotal === 0) {
+    try {
+      const roomId = bill.roomId?._id || bill.roomId;
+      const [chargesResult, waterResult] = await Promise.all([
+        api.get("/charges"),
+        roomId && bill.billingMonth
+          ? api.get(
+              `/water/readings?roomId=${encodeURIComponent(
+                roomId
+              )}&billingMonth=${encodeURIComponent(
+                bill.billingMonth
+              )}`
+            )
+          : Promise.resolve({ data: [] }),
+      ]);
+      const settings =
+        chargesResult.data?.charge ||
+        chargesResult.data?.item ||
+        chargesResult.data ||
+        {};
+      const readings = Array.isArray(waterResult.data)
+        ? waterResult.data
+        : waterResult.data?.readings || [];
+
+      charges = {
+        maintenance: settings.maintenance,
+        sinkingFund: settings.sinkingFund,
+        insurance: settings.insurance,
+        educationFund: settings.educationFund,
+        parking: settings.parking,
+        nonOccupancy: settings.nonOccupancy,
+        rentNoc: settings.rentNoc,
+        water: readings[0]?.amount || 0,
+        other: settings.other,
+      };
+    } catch {
+      charges = bill.currentCharges || {};
+    }
+  }
+
+  const rows = [
+    ["Previous Outstanding", bill.previousOutstanding],
+    ["Maintenance", charges.maintenance],
+    ["Sinking Fund", charges.sinkingFund],
+    ["Insurance", charges.insurance],
+    ["Education Fund", charges.educationFund],
+    ["Parking", charges.parking],
+    ["Non-Occupancy", charges.nonOccupancy],
+    ["Rent NOC", charges.rentNoc],
+    ["Water", charges.water],
+    ["Other Charges", charges.other],
+    ["Penalty", bill.penalty?.amount],
+  ];
+  const currentTotal = [
+    charges.maintenance,
+    charges.sinkingFund,
+    charges.insurance,
+    charges.educationFund,
+    charges.parking,
+    charges.nonOccupancy,
+    charges.rentNoc,
+    charges.water,
+    charges.other,
+  ].reduce((total, value) => total + Number(value || 0), 0);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = 1800;
+
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#0f172a";
+  context.font = "bold 48px Arial";
+  context.fillText("Pawan Society", 90, 100);
+  context.font = "28px Arial";
+  context.fillStyle = "#64748b";
+  context.fillText("Maintenance Bill", 90, 145);
+  context.fillText(`Bill #${bill.billNumber || "-"}`, 1000, 100);
+  context.fillText(formatMonth(bill.billingMonth), 1000, 145);
+
+  context.strokeStyle = "#cbd5e1";
+  context.beginPath();
+  context.moveTo(90, 190);
+  context.lineTo(1310, 190);
+  context.stroke();
+
+  context.fillStyle = "#334155";
+  context.font = "bold 30px Arial";
+  context.fillText(`Member: ${getMemberName(bill)}`, 90, 270);
+  context.font = "30px Arial";
+  context.fillText(`Room: ${getRoomNumber(bill)}`, 90, 325);
+
+  let y = 460;
+  context.font = "26px Arial";
+  rows.forEach(([label, value]) => {
+    context.fillStyle = "#64748b";
+    context.fillText(label, 90, y);
+    context.fillStyle = "#0f172a";
+    context.textAlign = "right";
+    context.fillText(money(value), 1310, y);
+    context.textAlign = "left";
+    y += 62;
+  });
+
+  context.fillStyle = "#f1f5f9";
+  context.fillRect(70, y - 40, 1260, 90);
+  context.fillStyle = "#334155";
+  context.font = "bold 28px Arial";
+  context.fillText("Current Charges Total", 90, y + 15);
+  context.textAlign = "right";
+  context.fillText(money(currentTotal), 1310, y + 15);
+  context.textAlign = "left";
+  y += 140;
+
+  context.fillStyle = "#020617";
+  context.fillRect(70, y - 50, 1260, 120);
+  context.fillStyle = "#ffffff";
+  context.font = "bold 36px Arial";
+  context.fillText("Total", 110, y + 20);
+  context.textAlign = "right";
+  context.fillText(money(getBillTotal(bill)), 1290, y + 20);
+  context.textAlign = "left";
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bill-${bill.billNumber || "download"}.png`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
 }
 
 /* =========================================================
@@ -721,15 +896,14 @@ function BillCard({
           View
         </Link>
 
-        <a
-          href={`/api/billing/${bill._id}/pdf`}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={() => downloadBillCanvas(bill)}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
         >
           <DownloadIcon />
-          PDF
-        </a>
+          Download
+        </button>
 
         <button
           type="button"
@@ -752,6 +926,8 @@ function BillCard({
 ========================================================= */
 
 export default function BillingPage() {
+  const router = useRouter();
+
   const [bills, setBills] =
     useState([]);
 
@@ -766,9 +942,6 @@ export default function BillingPage() {
 
   const [loading, setLoading] =
     useState(true);
-
-  const [generating, setGenerating] =
-    useState(false);
 
   const [error, setError] =
     useState("");
@@ -974,51 +1147,12 @@ export default function BillingPage() {
      GENERATE
   ======================================================= */
 
-  async function generateMonthlyBills() {
-    const confirmed =
-      window.confirm(
-        `Generate bills for ${formatMonth(
-          billingMonth
-        )}?`
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setGenerating(true);
-    setError("");
-
-    try {
-      const result =
-        await api.post(
-          "/billing/generate",
-          {
-            billingMonth,
-          }
-        );
-
-      await loadBills();
-
-      alert(
-        result?.message ||
-          `Bills generated successfully for ${formatMonth(
-            billingMonth
-          )}.`
-      );
-    } catch (err) {
-      console.error(
-        "Generate billing error:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to generate monthly bills."
-      );
-    } finally {
-      setGenerating(false);
-    }
+  function generateMonthlyBills() {
+    router.push(
+      `/billing/generate?month=${encodeURIComponent(
+        billingMonth
+      )}`
+    );
   }
 
   /* =======================================================
@@ -1028,6 +1162,64 @@ export default function BillingPage() {
   function clearFilters() {
     setSearch("");
     setStatus("ALL");
+  }
+
+  async function openBillDetails(bill) {
+    try {
+      const roomId = bill.roomId?._id || bill.roomId;
+      const month = bill.billingMonth;
+      const [chargesResult, waterResult] = await Promise.all([
+        api.get("/charges"),
+        roomId && month
+          ? api.get(
+              `/water/readings?roomId=${encodeURIComponent(
+                roomId
+              )}&billingMonth=${encodeURIComponent(month)}`
+            )
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const chargeSettings =
+        chargesResult.data?.charge ||
+        chargesResult.data?.item ||
+        chargesResult.data ||
+        {};
+      const readings = Array.isArray(waterResult.data)
+        ? waterResult.data
+        : waterResult.data?.readings || [];
+      const waterAmount = readings[0]?.amount || 0;
+      const storedCharges = bill.currentCharges || {};
+      const storedTotal = [
+        storedCharges.maintenance,
+        storedCharges.sinkingFund,
+        storedCharges.insurance,
+        storedCharges.educationFund,
+        storedCharges.parking,
+        storedCharges.nonOccupancy,
+        storedCharges.rentNoc,
+        storedCharges.water,
+        storedCharges.other,
+      ].reduce((total, value) => total + Number(value || 0), 0);
+
+      setSelectedBill({
+        ...bill,
+        currentCharges: storedTotal > 0
+          ? storedCharges
+          : {
+              maintenance: chargeSettings.maintenance,
+              sinkingFund: chargeSettings.sinkingFund,
+              insurance: chargeSettings.insurance,
+              educationFund: chargeSettings.educationFund,
+              parking: chargeSettings.parking,
+              nonOccupancy: chargeSettings.nonOccupancy,
+              rentNoc: chargeSettings.rentNoc,
+              water: waterAmount,
+              other: chargeSettings.other,
+            },
+      });
+    } catch {
+      setSelectedBill(bill);
+    }
   }
 
   return (
@@ -1091,20 +1283,10 @@ export default function BillingPage() {
               onClick={
                 generateMonthlyBills
               }
-              disabled={generating}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
-              {generating ? (
-                <>
-                  <RefreshIcon />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <BillIcon />
-                  Generate Monthly Bills
-                </>
-              )}
+              <BillIcon />
+              Generate Monthly Bills
             </button>
 
           </div>
@@ -1450,7 +1632,7 @@ export default function BillingPage() {
                       }
                       bill={bill}
                       onDetails={
-                        setSelectedBill
+                        openBillDetails
                       }
                     />
                   )
@@ -1636,21 +1818,20 @@ export default function BillingPage() {
                                   <EyeIcon />
                                 </Link>
 
-                                <a
-                                  href={`/api/billing/${bill._id}/pdf`}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => downloadBillCanvas(bill)}
                                   title="Download PDF"
                                   className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-950"
                                 >
                                   <DownloadIcon />
-                                </a>
+                                </button>
 
                                 <button
                                   type="button"
                                   title="More details"
                                   onClick={() =>
-                                    setSelectedBill(
+                                    openBillDetails(
                                       bill
                                     )
                                   }
@@ -1802,6 +1983,20 @@ export default function BillingPage() {
                 </div>
 
                 <div className="divide-y divide-slate-100">
+
+                  <div className="flex items-center justify-between bg-slate-50 px-4 py-3 text-sm">
+                    <span className="font-semibold text-slate-600">
+                      Current Charges Total
+                    </span>
+
+                    <span className="font-bold text-slate-900">
+                      {money(
+                        getBillCurrentCharges(
+                          selectedBill
+                        )
+                      )}
+                    </span>
+                  </div>
 
                   <div className="flex items-center justify-between px-4 py-3 text-sm">
 
@@ -2046,15 +2241,14 @@ export default function BillingPage() {
                   Open Bill
                 </Link>
 
-                <a
-                  href={`/api/billing/${selectedBill._id}/pdf`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => downloadBillCanvas(selectedBill)}
                   className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
                 >
                   <DownloadIcon />
-                  Download PDF
-                </a>
+                  Download Bill
+                </button>
 
               </div>
 
