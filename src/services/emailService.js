@@ -51,6 +51,8 @@ export async function sendBill({
 
     return result;
   } catch (error) {
+    console.error("Receipt email delivery failed:", error);
+
     await logEmail({
       recipient,
       type: "BILL",
@@ -71,8 +73,16 @@ export async function sendReceipt({
 }) {
   try {
     const result = await sendReceiptEmail({
-      receipt,
-      recipient,
+      email: recipient,
+      memberName:
+        receipt.memberId?.name ||
+        receipt.memberName ||
+        "Member",
+      receiptNumber:
+        receipt.receiptNumber,
+      amount: receipt.amount,
+      paymentMode:
+        receipt.paymentMode,
       pdfPath,
     });
 

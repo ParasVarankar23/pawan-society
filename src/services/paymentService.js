@@ -1,10 +1,13 @@
 import Payment from "@/models/Payment";
 import Bill from "@/models/Bill";
+import Member from "@/models/Member";
+import Receipt from "@/models/Receipt";
 
 import { connectDB } from "@/lib/mongodb";
 import { createFinancialTransaction } from "@/lib/accounting/transaction";
 import { createLedgerEntry } from "@/lib/accounting/ledger";
 import { createReceipt } from "@/services/receiptService";
+import { sendReceipt } from "@/services/emailService";
 
 export async function createPayment({
   data,
@@ -70,6 +73,42 @@ export async function createPayment({
   const receipt = await createReceipt({
     payment,
   });
+
+  const member = await Member.findById(
+    payment.memberId
+  ).lean();
+
+  if (!member?.email) {
+    await Receipt.findByIdAndUpdate(
+      receipt._id,
+      { $set: { emailStatus: "NOT_SENT" } }
+    );
+  } else {
+    try {
+      await sendReceipt({
+        receipt: {
+          ...receipt.toObject(),
+          memberId: member,
+        },
+        recipient: member.email,
+      });
+
+      await Receipt.findByIdAndUpdate(
+        receipt._id,
+        {
+          $set: {
+            emailStatus: "SENT",
+            emailSentAt: new Date(),
+          },
+        }
+      );
+    } catch (error) {
+      await Receipt.findByIdAndUpdate(
+        receipt._id,
+        { $set: { emailStatus: "FAILED" } }
+      );
+    }
+  }
 
   return {
     payment,
