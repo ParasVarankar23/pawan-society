@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useState,
 } from "react";
@@ -50,7 +51,7 @@ function readyCount(count, loading) {
   return loading ? "..." : String(count);
 }
 
-export default function GenerateBillingPage() {
+function GenerateBillingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedMonth = searchParams.get("month") || currentMonth();
@@ -276,5 +277,13 @@ export default function GenerateBillingPage() {
         </form>
       </div>
     </AppShell>
+  );
+}
+
+export default function GenerateBillingPage() {
+  return (
+    <Suspense fallback={null}>
+      <GenerateBillingPageContent />
+    </Suspense>
   );
 }
