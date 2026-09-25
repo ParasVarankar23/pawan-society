@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChevronDown,
   Eye,
   Hammer,
   Pencil,
@@ -11,7 +12,7 @@ import {
   WalletCards
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Toast from "@/components/common/Toast";
 import AppShell from "@/components/layout/AppShell";
@@ -62,6 +63,10 @@ export default function WorksPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
+  const [workCategories, setWorkCategories] = useState([]);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryRef = useRef(null);
 
   const [toast, setToast] = useState({
     show: false,
@@ -75,6 +80,23 @@ export default function WorksPage() {
       type,
       message,
     });
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        categoryRef.current &&
+        !categoryRef.current.contains(event.target)
+      ) {
+        setCategoryOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   async function loadWorks() {
     try {
@@ -111,17 +133,25 @@ export default function WorksPage() {
     loadWorks();
   }, [category]);
 
-  const categories = useMemo(() => {
-    const values = works
-      .map((item) =>
-        item.category?.name ||
-        item.category ||
-        ""
-      )
-      .filter(Boolean);
+  useEffect(() => {
+    async function loadWorkCategories() {
+      try {
+        const response = await api.get("/works/categories");
+        const data = Array.isArray(response?.data)
+          ? response.data
+          : response?.data?.categories || [];
 
-    return [...new Set(values)];
-  }, [works]);
+        setWorkCategories(data);
+      } catch (error) {
+        showToast(
+          error?.message || "Failed to load work categories.",
+          "error"
+        );
+      }
+    }
+
+    loadWorkCategories();
+  }, []);
 
   const filteredWorks = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -272,19 +302,55 @@ export default function WorksPage() {
               />
             </div>
 
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-500"
-            >
-              <option value="ALL">All Categories</option>
+            <div ref={categoryRef} className="relative">
+              <button
+                type="button"
+                className="input flex h-11 w-full items-center justify-between text-left"
+                onClick={() => setCategoryOpen((current) => !current)}
+                aria-haspopup="listbox"
+                aria-expanded={categoryOpen}
+              >
+                <span className="text-sm text-slate-700">
+                  {category === "ALL"
+                    ? "All Categories"
+                    : workCategories.find((item) => item.name === category)?.name || category}
+                </span>
+                <ChevronDown size={16} className="text-slate-500" />
+              </button>
 
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+              {categoryOpen && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <input
+                    type="search"
+                    value={categorySearch}
+                    onChange={(event) => setCategorySearch(event.target.value)}
+                    placeholder="Search category..."
+                    className="input h-10 w-full"
+                    aria-label="Search work category"
+                  />
+                  <div className="mt-2 max-h-48 overflow-y-auto" role="listbox">
+                    {[{ name: "All Categories", value: "ALL" }, ...workCategories.map((item) => ({ name: item.name, value: item.name }))]
+                      .filter((item) => item.name.toLowerCase().includes(categorySearch.trim().toLowerCase()))
+                      .map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          role="option"
+                          aria-selected={category === item.value}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${category === item.value ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-700"}`}
+                          onClick={() => {
+                            setCategory(item.value);
+                            setCategorySearch("");
+                            setCategoryOpen(false);
+                          }}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

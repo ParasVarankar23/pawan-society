@@ -2,20 +2,21 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
-import {
-  useRouter,
-} from "next/navigation";
+import { useRouter } from "next/navigation";
 
-import AppShell from "@/components/layout/AppShell";
+import { ChevronDown } from "lucide-react";
+
 import Toast from "@/components/common/Toast";
-import api from "@/lib/apiClient";
+import AppShell from "@/components/layout/AppShell";
 import {
   PAYMENT_MODES,
   PAYMENT_MODE_LABELS,
 } from "@/constants/paymentModes";
+import api from "@/lib/apiClient";
 
 function today() {
   return new Date().toISOString().split("T")[0];
@@ -41,6 +42,26 @@ export default function AddExpensePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        categoryRef.current &&
+        !categoryRef.current.contains(event.target)
+      ) {
+        setCategoryOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadCategories() {
@@ -145,12 +166,60 @@ export default function AddExpensePage() {
               </div>
               <div>
                 <label className="label" htmlFor="expense-category">Category *</label>
-                <select id="expense-category" className="input" value={form.category} onChange={(event) => updateField("category", event.target.value)} disabled={loading} required>
-                  <option value="">{loading ? "Loading categories..." : "Select category"}</option>
-                  {categories.map((category) => (
-                    <option key={category._id} value={category._id}>{category.name}</option>
-                  ))}
-                </select>
+                <div ref={categoryRef} className="relative">
+                  <button
+                    id="expense-category"
+                    type="button"
+                    className="input flex w-full items-center justify-between text-left disabled:opacity-50"
+                    onClick={() => setCategoryOpen((current) => !current)}
+                    disabled={loading}
+                    aria-haspopup="listbox"
+                    aria-expanded={categoryOpen}
+                  >
+                    <span className={form.category ? "text-slate-800" : "text-slate-400"}>
+                      {loading
+                        ? "Loading categories..."
+                        : categories.find((item) => item._id === form.category)?.name || "Select category"}
+                    </span>
+                    <ChevronDown size={16} className="text-slate-500" />
+                  </button>
+
+                  {categoryOpen && !loading && (
+                    <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <input
+                        type="search"
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Search category..."
+                        className="input h-10 w-full"
+                        aria-label="Search category"
+                      />
+
+                      <div className="mt-2 max-h-48 overflow-y-auto" role="listbox">
+                        {categories
+                          .filter((item) =>
+                            item.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
+                          )
+                          .map((item) => (
+                            <button
+                              key={item._id}
+                              type="button"
+                              role="option"
+                              aria-selected={form.category === item._id}
+                              className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${form.category === item._id ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-700"}`}
+                              onClick={() => {
+                                updateField("category", item._id);
+                                setCategorySearch("");
+                                setCategoryOpen(false);
+                              }}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="label" htmlFor="expense-description">Description *</label>

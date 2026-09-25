@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -15,6 +13,8 @@ import {
   Search,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "@/components/layout/AppShell";
 
@@ -44,6 +44,22 @@ const formatDate = (date) => {
     year: "numeric",
   });
 };
+
+function currentDateRange() {
+  const date = new Date();
+  const today = `${date.getFullYear()}-${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+
+  return {
+    fromDate: `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-01`,
+    toDate: today,
+  };
+}
 
 const getBalance = (entry) =>
   Number(entry.balance ?? entry.runningBalance ?? 0);
@@ -283,11 +299,10 @@ function LedgerCard({ entry }) {
           </p>
 
           <p
-            className={`mt-1 text-sm font-bold ${
-              balance > 0
+            className={`mt-1 text-sm font-bold ${balance > 0
                 ? "text-red-600"
                 : "text-emerald-600"
-            }`}
+              }`}
           >
             {formatCurrency(balance)}
           </p>
@@ -297,14 +312,14 @@ function LedgerCard({ entry }) {
       {/* Reference */}
       {(entry.referenceId ||
         entry.reference) && (
-        <div className="mt-3 text-xs text-slate-400">
-          Reference:{" "}
-          <span className="font-medium text-slate-600">
-            {entry.referenceId ||
-              entry.reference}
-          </span>
-        </div>
-      )}
+          <div className="mt-3 text-xs text-slate-400">
+            Reference:{" "}
+            <span className="font-medium text-slate-600">
+              {entry.referenceId ||
+                entry.reference}
+            </span>
+          </div>
+        )}
     </div>
   );
 }
@@ -329,11 +344,13 @@ export default function LedgerPage() {
   const [type, setType] =
     useState("ALL");
 
+  const defaultDateRange = currentDateRange();
+
   const [fromDate, setFromDate] =
-    useState("");
+    useState(defaultDateRange.fromDate);
 
   const [toDate, setToDate] =
-    useState("");
+    useState(defaultDateRange.toDate);
 
   const [page, setPage] =
     useState(1);
@@ -376,8 +393,7 @@ export default function LedgerPage() {
         params.toString();
 
       const response = await fetch(
-        `/api/ledger${
-          query ? `?${query}` : ""
+        `/api/ledger${query ? `?${query}` : ""
         }`,
         {
           credentials: "include",
@@ -391,7 +407,7 @@ export default function LedgerPage() {
       if (!response.ok) {
         throw new Error(
           result?.message ||
-            "Failed to load ledger."
+          "Failed to load ledger."
         );
       }
 
@@ -400,8 +416,8 @@ export default function LedgerPage() {
           Array.isArray(result.data)
             ? result.data
             : result.data?.entries ||
-              result.data?.ledger ||
-              [];
+            result.data?.ledger ||
+            [];
 
         setEntries(data);
       } else {
@@ -513,14 +529,14 @@ export default function LedgerPage() {
       1,
       Math.ceil(
         filteredEntries.length /
-          itemsPerPage
+        itemsPerPage
       )
     );
 
   const paginatedEntries =
     filteredEntries.slice(
       (page - 1) *
-        itemsPerPage,
+      itemsPerPage,
       page * itemsPerPage
     );
 
@@ -540,8 +556,9 @@ export default function LedgerPage() {
   function clearFilters() {
     setSearch("");
     setType("ALL");
-    setFromDate("");
-    setToDate("");
+    const dateRange = currentDateRange();
+    setFromDate(dateRange.fromDate);
+    setToDate(dateRange.toDate);
   }
 
   /* =======================================================
@@ -928,12 +945,12 @@ export default function LedgerPage() {
 
                             {(entry.referenceId ||
                               entry.reference) && (
-                              <p className="mt-1 truncate text-[11px] text-slate-400">
-                                Ref:{" "}
-                                {entry.referenceId ||
-                                  entry.reference}
-                              </p>
-                            )}
+                                <p className="mt-1 truncate text-[11px] text-slate-400">
+                                  Ref:{" "}
+                                  {entry.referenceId ||
+                                    entry.reference}
+                                </p>
+                              )}
 
                           </td>
 
@@ -954,16 +971,16 @@ export default function LedgerPage() {
                           <td className="px-5 py-4 text-right font-semibold text-red-600">
                             {entry.debit
                               ? formatCurrency(
-                                  entry.debit
-                                )
+                                entry.debit
+                              )
                               : "-"}
                           </td>
 
                           <td className="px-5 py-4 text-right font-semibold text-emerald-600">
                             {entry.credit
                               ? formatCurrency(
-                                  entry.credit
-                                )
+                                entry.credit
+                              )
                               : "-"}
                           </td>
 
@@ -972,7 +989,7 @@ export default function LedgerPage() {
                             <span
                               className={
                                 balance >
-                                0
+                                  0
                                   ? "font-bold text-red-600"
                                   : "font-bold text-emerald-600"
                               }
@@ -987,7 +1004,7 @@ export default function LedgerPage() {
                           <td className="px-5 py-4 text-center">
 
                             {roomNumber !==
-                            "-" ? (
+                              "-" ? (
                               <Link
                                 href={`/ledger?room=${encodeURIComponent(
                                   roomNumber
@@ -1051,7 +1068,7 @@ export default function LedgerPage() {
 
         {!loading &&
           filteredEntries.length >
-            0 && (
+          0 && (
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
 
               <p className="text-sm text-slate-500">
@@ -1060,7 +1077,7 @@ export default function LedgerPage() {
 
                 <span className="font-semibold text-slate-700">
                   {(page - 1) *
-                      itemsPerPage +
+                    itemsPerPage +
                     1}
                 </span>
 
@@ -1069,7 +1086,7 @@ export default function LedgerPage() {
                 <span className="font-semibold text-slate-700">
                   {Math.min(
                     page *
-                      itemsPerPage,
+                    itemsPerPage,
                     filteredEntries.length
                   )}
                 </span>

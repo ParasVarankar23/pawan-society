@@ -1,5 +1,5 @@
-import FinancialTransaction from "@/models/FinancialTransaction";
 import Bill from "@/models/Bill";
+import FinancialTransaction from "@/models/FinancialTransaction";
 import Payment from "@/models/Payment";
 
 import { connectDB } from "@/lib/mongodb";
@@ -119,6 +119,8 @@ export async function getCollectionReport({
 
 export async function getOutstandingReport({
   billingMonth,
+  fromDate,
+  toDate,
 } = {}) {
   await connectDB();
 
@@ -133,6 +135,18 @@ export async function getOutstandingReport({
 
   if (billingMonth) {
     query.billingMonth = billingMonth;
+  }
+
+  if (fromDate || toDate) {
+    query.billDate = {};
+
+    if (fromDate) {
+      query.billDate.$gte = new Date(`${fromDate}T00:00:00`);
+    }
+
+    if (toDate) {
+      query.billDate.$lte = new Date(`${toDate}T23:59:59.999`);
+    }
   }
 
   const bills = await Bill.find(query)

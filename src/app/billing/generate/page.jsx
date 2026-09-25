@@ -3,6 +3,7 @@
 import {
   Suspense,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -69,10 +70,28 @@ function GenerateBillingPageContent() {
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [roomSearch, setRoomSearch] = useState("");
   const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  const roomPickerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        roomPickerRef.current &&
+        !roomPickerRef.current.contains(event.target)
+      ) {
+        setRoomPickerOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     setMonth(requestedMonth);
@@ -244,7 +263,7 @@ function GenerateBillingPageContent() {
           <div className="grid gap-5 sm:grid-cols-3">
             <div>
               <label className="label" htmlFor="billing-room">Room</label>
-              <div className="relative">
+              <div ref={roomPickerRef} className="relative">
                 <button
                   id="billing-room"
                   type="button"

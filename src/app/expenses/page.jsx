@@ -1,24 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Edit3,
   Eye,
   FileText,
   IndianRupee,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   TrendingDown,
   WalletCards,
+  X,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -48,6 +51,18 @@ const formatDate = (date) => {
   });
 };
 
+function currentDateRange() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return {
+    fromDate: `${year}-${month}-01`,
+    toDate: `${year}-${month}-${day}`,
+  };
+}
+
 const getCategoryName = (expense) =>
   expense.category?.name ||
   expense.categoryName ||
@@ -57,8 +72,8 @@ const getCategoryName = (expense) =>
 const getExpenseAmount = (expense) =>
   Number(
     expense.amount ??
-      expense.actualAmount ??
-      0
+    expense.actualAmount ??
+    0
   );
 
 const getPaymentMode = (expense) =>
@@ -81,6 +96,24 @@ const getDescription = (expense) =>
 const getStatus = (expense) =>
   expense.status ||
   "ACTIVE";
+
+const initialExpenseForm = {
+  date: "",
+  category: "",
+  vendorName: "",
+  billNumber: "",
+  description: "",
+  amount: "",
+  paymentMode: "CASH",
+  paymentDate: "",
+  referenceNumber: "",
+  attachmentUrl: "",
+  status: "ACTIVE",
+};
+
+function dateInputValue(value) {
+  return value ? new Date(value).toISOString().slice(0, 10) : "";
+}
 
 /* =========================================================
    SUMMARY CARD
@@ -253,7 +286,7 @@ function EmptyCard() {
    MOBILE EXPENSE CARD
 ========================================================= */
 
-function ExpenseCard({ expense }) {
+function ExpenseCard({ expense, onEdit, onDelete }) {
   const amount =
     getExpenseAmount(expense);
 
@@ -361,13 +394,31 @@ function ExpenseCard({ expense }) {
         </div>
 
         {expense._id && (
-          <Link
-            href={`/expenses/${expense._id}`}
-            title="View expense"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-100"
-          >
-            <Eye size={16} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/expenses/${expense._id}`}
+              title="View expense"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600"
+            >
+              <Eye size={16} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => onEdit(expense)}
+              title="Edit expense"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+            >
+              <Edit3 size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(expense)}
+              title="Delete expense"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-100"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         )}
 
       </div>
@@ -399,14 +450,25 @@ export default function ExpensesPage() {
   const [category, setCategory] =
     useState("ALL");
 
+  const defaultDateRange = currentDateRange();
+
   const [fromDate, setFromDate] =
-    useState("");
+    useState(defaultDateRange.fromDate);
 
   const [toDate, setToDate] =
-    useState("");
+    useState(defaultDateRange.toDate);
 
   const [page, setPage] =
     useState(1);
+
+  const [editingExpense, setEditingExpense] =
+    useState(null);
+
+  const [expenseForm, setExpenseForm] =
+    useState(initialExpenseForm);
+
+  const [savingExpense, setSavingExpense] =
+    useState(false);
 
   const [toast, setToast] =
     useState({
@@ -430,6 +492,76 @@ export default function ExpensesPage() {
       type,
       message,
     });
+  }
+
+  function updateExpenseField(field, value) {
+    setExpenseForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function openEditExpense(expense) {
+    setEditingExpense(expense);
+    setExpenseForm({
+      date: dateInputValue(expense.date),
+      category: expense.category?._id || expense.category || "",
+      vendorName: expense.vendorName || expense.vendor || "",
+      billNumber: expense.billNumber || "",
+      description: expense.description || "",
+      amount: expense.amount ?? expense.actualAmount ?? "",
+      paymentMode: expense.paymentMode || "CASH",
+      paymentDate: dateInputValue(expense.paymentDate),
+      referenceNumber: expense.referenceNumber || "",
+      attachmentUrl: expense.attachmentUrl || "",
+      status: expense.status || "ACTIVE",
+    });
+  }
+
+  function closeEditExpense() {
+    if (savingExpense) return;
+    setEditingExpense(null);
+    setExpenseForm(initialExpenseForm);
+  }
+
+  async function saveExpenseEdit(event) {
+    event.preventDefault();
+    setSavingExpense(true);
+
+    try {
+      await api.put(`/expenses/${editingExpense._id}`, {
+        ...expenseForm,
+        amount: Number(expenseForm.amount),
+        vendorName: expenseForm.vendorName.trim(),
+        billNumber: expenseForm.billNumber.trim(),
+        description: expenseForm.description.trim(),
+        referenceNumber: expenseForm.referenceNumber.trim(),
+        attachmentUrl: expenseForm.attachmentUrl.trim(),
+        paymentDate: expenseForm.paymentDate || null,
+      });
+
+      closeEditExpense();
+      await loadExpenses();
+      showToast("Expense updated.");
+    } catch (error) {
+      showToast(error?.message || "Unable to update expense.", "error");
+    } finally {
+      setSavingExpense(false);
+    }
+  }
+
+  async function deleteExpense(expense) {
+    if (!window.confirm(`Delete expense ${getDescription(expense)}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/expenses/${expense._id}`);
+      await loadExpenses();
+      showToast("Expense deleted.");
+    } catch (error) {
+      showToast(error?.message || "Unable to delete expense.", "error");
+    }
   }
 
   /* =======================================================
@@ -469,10 +601,9 @@ export default function ExpensesPage() {
 
       const response =
         await api.get(
-          `/expenses${
-            query
-              ? `?${query}`
-              : ""
+          `/expenses${query
+            ? `?${query}`
+            : ""
           }`
         );
 
@@ -482,8 +613,8 @@ export default function ExpensesPage() {
         )
           ? response.data
           : response?.data?.items ||
-            response?.data?.expenses ||
-            [];
+          response?.data?.expenses ||
+          [];
 
       setExpenses(data);
     } catch (error) {
@@ -496,7 +627,7 @@ export default function ExpensesPage() {
 
       showToast(
         error?.message ||
-          "Failed to load expenses.",
+        "Failed to load expenses.",
         "error"
       );
     } finally {
@@ -522,8 +653,8 @@ export default function ExpensesPage() {
         )
           ? response.data
           : response?.data?.items ||
-            response?.data?.categories ||
-            [];
+          response?.data?.categories ||
+          [];
 
       setCategories(data);
     } catch (error) {
@@ -645,14 +776,14 @@ export default function ExpensesPage() {
       1,
       Math.ceil(
         filteredExpenses.length /
-          itemsPerPage
+        itemsPerPage
       )
     );
 
   const paginatedExpenses =
     filteredExpenses.slice(
       (page - 1) *
-        itemsPerPage,
+      itemsPerPage,
       page * itemsPerPage
     );
 
@@ -672,8 +803,9 @@ export default function ExpensesPage() {
   function clearFilters() {
     setSearch("");
     setCategory("ALL");
-    setFromDate("");
-    setToDate("");
+    const dateRange = currentDateRange();
+    setFromDate(dateRange.fromDate);
+    setToDate(dateRange.toDate);
   }
 
   /* =======================================================
@@ -1122,20 +1254,33 @@ export default function ExpensesPage() {
                         </td>
 
                         <td className="px-5 py-4 text-center">
-
                           {expense._id ? (
-                            <Link
-                              href={`/expenses/${expense._id}`}
-                              title="View expense"
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600"
-                            >
-                              <Eye
-                                size={16}
-                              />
-                            </Link>
-                          ) : (
-                            "-"
-                          )}
+                            <div className="flex justify-center gap-2">
+                              <Link
+                                href={`/expenses/${expense._id}`}
+                                title="View expense"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600"
+                              >
+                                <Eye size={16} />
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => openEditExpense(expense)}
+                                title="Edit expense"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteExpense(expense)}
+                                title="Delete expense"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ) : "-"}
 
                         </td>
 
@@ -1173,6 +1318,8 @@ export default function ExpensesPage() {
                   expense={
                     expense
                   }
+                  onEdit={openEditExpense}
+                  onDelete={deleteExpense}
                 />
               )
             )
@@ -1186,7 +1333,7 @@ export default function ExpensesPage() {
 
         {!loading &&
           filteredExpenses.length >
-            0 && (
+          0 && (
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
 
               <p className="text-sm text-slate-500">
@@ -1195,7 +1342,7 @@ export default function ExpensesPage() {
 
                 <span className="font-semibold text-slate-700">
                   {(page - 1) *
-                      itemsPerPage +
+                    itemsPerPage +
                     1}
                 </span>
 
@@ -1204,7 +1351,7 @@ export default function ExpensesPage() {
                 <span className="font-semibold text-slate-700">
                   {Math.min(
                     page *
-                      itemsPerPage,
+                    itemsPerPage,
                     filteredExpenses.length
                   )}
                 </span>
@@ -1266,6 +1413,91 @@ export default function ExpensesPage() {
 
             </div>
           )}
+
+        {editingExpense && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <form
+              onSubmit={saveExpenseEdit}
+              className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-950">Edit Expense</h2>
+                  <p className="mt-1 text-xs text-slate-500">Update expense and payment details.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeEditExpense}
+                  disabled={savingExpense}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                  aria-label="Close edit expense"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid gap-4 p-6 sm:grid-cols-2">
+                <label className="label" htmlFor="edit-expense-date">
+                  Expense date *
+                  <input id="edit-expense-date" className="input mt-1" type="date" value={expenseForm.date} onChange={(event) => updateExpenseField("date", event.target.value)} required />
+                </label>
+                <label className="label" htmlFor="edit-expense-category">
+                  Category *
+                  <select id="edit-expense-category" className="input mt-1" value={expenseForm.category} onChange={(event) => updateExpenseField("category", event.target.value)} required>
+                    <option value="">Select category</option>
+                    {categories.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}
+                  </select>
+                </label>
+                <label className="label" htmlFor="edit-expense-description">
+                  Description *
+                  <input id="edit-expense-description" className="input mt-1" value={expenseForm.description} onChange={(event) => updateExpenseField("description", event.target.value)} required />
+                </label>
+                <label className="label" htmlFor="edit-expense-amount">
+                  Amount *
+                  <input id="edit-expense-amount" className="input mt-1" type="number" min="0.01" step="0.01" value={expenseForm.amount} onChange={(event) => updateExpenseField("amount", event.target.value)} required />
+                </label>
+                <label className="label" htmlFor="edit-expense-vendor">
+                  Vendor
+                  <input id="edit-expense-vendor" className="input mt-1" value={expenseForm.vendorName} onChange={(event) => updateExpenseField("vendorName", event.target.value)} />
+                </label>
+                <label className="label" htmlFor="edit-expense-bill-number">
+                  Bill number
+                  <input id="edit-expense-bill-number" className="input mt-1" value={expenseForm.billNumber} onChange={(event) => updateExpenseField("billNumber", event.target.value)} />
+                </label>
+                <label className="label" htmlFor="edit-expense-payment-mode">
+                  Payment mode
+                  <select id="edit-expense-payment-mode" className="input mt-1" value={expenseForm.paymentMode} onChange={(event) => updateExpenseField("paymentMode", event.target.value)}>
+                    {Object.entries({ CASH: "Cash", CHEQUE: "Cheque", BANK_TRANSFER: "Bank Transfer", UPI: "UPI", NEFT: "NEFT", RTGS: "RTGS", IMPS: "IMPS", OTHER: "Other" }).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="label" htmlFor="edit-expense-payment-date">
+                  Payment date
+                  <input id="edit-expense-payment-date" className="input mt-1" type="date" value={expenseForm.paymentDate} onChange={(event) => updateExpenseField("paymentDate", event.target.value)} />
+                </label>
+                <label className="label" htmlFor="edit-expense-reference">
+                  Reference number
+                  <input id="edit-expense-reference" className="input mt-1" value={expenseForm.referenceNumber} onChange={(event) => updateExpenseField("referenceNumber", event.target.value)} />
+                </label>
+                <label className="label" htmlFor="edit-expense-status">
+                  Status
+                  <select id="edit-expense-status" className="input mt-1" value={expenseForm.status} onChange={(event) => updateExpenseField("status", event.target.value)}>
+                    <option value="ACTIVE">Active</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </label>
+                <label className="label sm:col-span-2" htmlFor="edit-expense-attachment">
+                  Attachment URL
+                  <input id="edit-expense-attachment" className="input mt-1" value={expenseForm.attachmentUrl} onChange={(event) => updateExpenseField("attachmentUrl", event.target.value)} />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                <button type="button" onClick={closeEditExpense} disabled={savingExpense} className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={savingExpense} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{savingExpense ? "Saving..." : "Update Expense"}</button>
+              </div>
+            </form>
+          </div>
+        )}
 
       </div>
 

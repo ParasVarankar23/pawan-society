@@ -46,7 +46,7 @@ export async function POST(request) {
       return json(
         await createExpense({
           data: await getJsonBody(request),
-          adminId: user.id || user._id,
+          adminId: user.adminId,
         }),
         201
       );

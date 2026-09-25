@@ -31,7 +31,7 @@ export async function POST(request) {
           data:
             await getJsonBody(request),
           adminId:
-            user.id || user._id,
+            user.adminId,
         }),
         201
       );

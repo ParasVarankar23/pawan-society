@@ -2,12 +2,14 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import {
   Building2,
   CarFront,
+  ChevronDown,
   Edit3,
   Plus,
   RefreshCw,
@@ -21,7 +23,7 @@ import api from "@/lib/apiClient";
 const initialForm = {
   roomNumber: "",
   areaSqFt: "",
-  occupancyStatus: "VACANT",
+  occupancyStatus: "",
   parking: false,
   parkingCount: 0,
 };
@@ -99,6 +101,42 @@ export default function RoomsPage() {
 
   const [form, setForm] =
     useState(initialForm);
+
+  const [occupancySearch, setOccupancySearch] =
+    useState("");
+
+  const [occupancyOpen, setOccupancyOpen] =
+    useState(false);
+
+  const [parkingOpen, setParkingOpen] =
+    useState(false);
+
+  const occupancyRef = useRef(null);
+  const parkingRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        occupancyRef.current &&
+        !occupancyRef.current.contains(event.target)
+      ) {
+        setOccupancyOpen(false);
+      }
+
+      if (
+        parkingRef.current &&
+        !parkingRef.current.contains(event.target)
+      ) {
+        setParkingOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   async function loadRooms(
     searchValue = ""
@@ -673,33 +711,19 @@ export default function RoomsPage() {
                     Occupancy Status
                   </label>
 
-                  <select
-                    className="input"
-                    value={
-                      form.occupancyStatus
+                  <SearchableSelect
+                    containerRef={occupancyRef}
+                    value={form.occupancyStatus}
+                    options={occupancyOptions}
+                    search={occupancySearch}
+                    open={occupancyOpen}
+                    setSearch={setOccupancySearch}
+                    setOpen={setOccupancyOpen}
+                    onChange={(value) =>
+                      updateField("occupancyStatus", value)
                     }
-                    onChange={(event) =>
-                      updateField(
-                        "occupancyStatus",
-                        event.target.value
-                      )
-                    }
-                  >
-                    {occupancyOptions.map(
-                      (option) => (
-                        <option
-                          key={
-                            option.value
-                          }
-                          value={
-                            option.value
-                          }
-                        >
-                          {option.label}
-                        </option>
-                      )
-                    )}
-                  </select>
+                    placeholder="Search occupancy status..."
+                  />
                 </div>
 
                 {/* Parking */}
@@ -708,29 +732,23 @@ export default function RoomsPage() {
                     Parking
                   </label>
 
-                  <select
-                    className="input"
-                    value={
-                      form.parking
-                        ? "YES"
-                        : "NO"
+                  <SearchableSelect
+                    containerRef={parkingRef}
+                    value={form.parking ? "YES" : "NO"}
+                    options={[
+                      { value: "NO", label: "No" },
+                      { value: "YES", label: "Yes" },
+                    ]}
+                    search=""
+                    open={parkingOpen}
+                    setSearch={() => { }}
+                    setOpen={setParkingOpen}
+                    onChange={(value) =>
+                      updateField("parking", value === "YES")
                     }
-                    onChange={(event) =>
-                      updateField(
-                        "parking",
-                        event.target.value ===
-                        "YES"
-                      )
-                    }
-                  >
-                    <option value="NO">
-                      No
-                    </option>
-
-                    <option value="YES">
-                      Yes
-                    </option>
-                  </select>
+                    placeholder="Search parking..."
+                    hideSearch
+                  />
                 </div>
 
                 {/* Parking count */}
@@ -787,6 +805,73 @@ export default function RoomsPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function SearchableSelect({
+  containerRef,
+  value,
+  options,
+  search,
+  open,
+  setSearch,
+  setOpen,
+  onChange,
+  placeholder,
+  hideSearch = false,
+}) {
+  const selectedLabel =
+    options.find((option) => option.value === value)?.label ||
+    "Select option";
+
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        className="input flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <span className="text-slate-800">{selectedLabel}</span>
+        <ChevronDown size={16} className="text-slate-500" />
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          {!hideSearch && (
+            <input
+              type="search"
+              className="input"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={placeholder}
+              aria-label={placeholder}
+            />
+          )}
+
+          <div className={`${hideSearch ? "" : "mt-2"} max-h-40 overflow-y-auto`}>
+            {filteredOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${value === option.value ? "bg-slate-50 font-semibold" : "text-slate-700"}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setSearch("");
+                  setOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

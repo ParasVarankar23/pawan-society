@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -32,6 +33,79 @@ function BillIcon() {
       <path d="M9 12h6" />
       <path d="M9 16h3" />
     </svg>
+  );
+}
+
+function BillingMonthSelect({ value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const pickerRef = useRef(null);
+  const selectedOption = options.find((option) => option.value === value);
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(searchValue.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  return (
+    <div ref={pickerRef} className="relative min-w-52">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-10 w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm font-semibold text-white outline-none transition hover:border-slate-500 focus:border-slate-400 focus:ring-4 focus:ring-slate-400/20"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span>{selectedOption?.label || "Select month"}</span>
+        <span className="text-slate-300">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-2xl">
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Search month..."
+            className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-slate-400"
+            aria-label="Search billing month"
+          />
+          <div className="mt-2 max-h-48 overflow-y-auto" role="listbox">
+            {filteredOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  setSearchValue("");
+                }}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-800 ${option.value === value ? "bg-slate-700 font-semibold text-white" : "text-slate-200"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -380,6 +454,31 @@ function formatMonth(month) {
     }
   );
 }
+
+function getBillingMonthOptions() {
+  const options = [];
+  const date = new Date();
+
+  for (let offset = 0; offset < 24; offset += 1) {
+    const optionDate = new Date(
+      date.getFullYear(),
+      date.getMonth() - offset,
+      1
+    );
+    const value = `${optionDate.getFullYear()}-${String(
+      optionDate.getMonth() + 1
+    ).padStart(2, "0")}`;
+
+    options.push({
+      value,
+      label: formatMonth(value),
+    });
+  }
+
+  return options;
+}
+
+const billingMonthOptions = getBillingMonthOptions();
 
 function normalizeBills(result) {
   if (Array.isArray(result?.data)) {
@@ -1372,17 +1471,6 @@ export default function BillingPage() {
               Generate Bill
             </Link>
 
-            <button
-              type="button"
-              onClick={
-                generateMonthlyBills
-              }
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-            >
-              <BillIcon />
-              Generate Monthly Bills
-            </button>
-
           </div>
 
         </div>
@@ -1492,26 +1580,11 @@ export default function BillingPage() {
                 <ChevronLeftIcon />
               </button>
 
-              <div className="relative">
-
-                <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <CalendarIcon />
-                </div>
-
-                <input
-                  type="month"
-                  value={
-                    billingMonth
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setBillingMonth(
-                      event.target
-                        .value
-                    )
-                  }
-                  className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+              <div>
+                <BillingMonthSelect
+                  value={billingMonth}
+                  options={billingMonthOptions}
+                  onChange={setBillingMonth}
                 />
 
               </div>

@@ -56,6 +56,7 @@ export async function createPayment({
     description: "Maintenance payment received",
     debit: 0,
     credit: data.amount,
+    balance: bill?.balanceAmount || 0,
   });
 
   await createFinancialTransaction({

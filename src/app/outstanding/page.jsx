@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
-  ArrowDown,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -13,11 +11,13 @@ import {
   RefreshCw,
   Search,
   Users,
-  WalletCards,
+  WalletCards
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -47,13 +47,71 @@ const formatDate = (date) => {
   });
 };
 
+function currentBillingMonth() {
+  const date = new Date();
+
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}`;
+}
+
+function monthLabel(month) {
+  if (!month) return "All months";
+
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString(
+    "en-IN",
+    { month: "long", year: "numeric" }
+  );
+}
+
+function getMonthOptions() {
+  const options = [];
+  const date = new Date();
+
+  for (let offset = 0; offset < 24; offset += 1) {
+    const optionDate = new Date(
+      date.getFullYear(),
+      date.getMonth() - offset,
+      1
+    );
+    options.push(
+      `${optionDate.getFullYear()}-${String(
+        optionDate.getMonth() + 1
+      ).padStart(2, "0")}`
+    );
+  }
+
+  return options;
+}
+
+const monthOptions = getMonthOptions();
+
+function getBillingDateRange(month) {
+  if (!month) return {};
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const today = new Date();
+  const endDate = month === currentBillingMonth()
+    ? today
+    : new Date(year, monthNumber, 0);
+
+  return {
+    fromDate: `${month}-01`,
+    toDate: `${endDate.getFullYear()}-${String(
+      endDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(
+      endDate.getDate()
+    ).padStart(2, "0")}`,
+  };
+}
+
 const getOutstandingAmount = (item) =>
   Number(
     item.balanceAmount ??
-      item.outstandingAmount ??
-      item.balance ??
-      item.amountDue ??
-      0
+    item.outstandingAmount ??
+    item.balance ??
+    item.amountDue ??
+    0
   );
 
 const getRoomNumber = (item) =>
@@ -377,7 +435,15 @@ export default function OutstandingPage() {
     useState("");
 
   const [billingMonth, setBillingMonth] =
+    useState(currentBillingMonth);
+
+  const [monthSearch, setMonthSearch] =
     useState("");
+
+  const [monthOpen, setMonthOpen] =
+    useState(false);
+
+  const monthPickerRef = useRef(null);
 
   const [page, setPage] =
     useState(1);
@@ -406,6 +472,27 @@ export default function OutstandingPage() {
     });
   }
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        monthPickerRef.current &&
+        !monthPickerRef.current.contains(event.target)
+      ) {
+        setMonthOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filteredMonths = monthOptions.filter((month) =>
+    monthLabel(month).toLowerCase().includes(monthSearch.trim().toLowerCase())
+  );
+
   /* =======================================================
      LOAD OUTSTANDING
   ======================================================= */
@@ -422,6 +509,10 @@ export default function OutstandingPage() {
           "billingMonth",
           billingMonth
         );
+
+        const dateRange = getBillingDateRange(billingMonth);
+        params.set("fromDate", dateRange.fromDate);
+        params.set("toDate", dateRange.toDate);
       }
 
       const query =
@@ -429,8 +520,7 @@ export default function OutstandingPage() {
 
       const response =
         await api.get(
-          `/billing/outstanding${
-            query ? `?${query}` : ""
+          `/billing/outstanding${query ? `?${query}` : ""
           }`
         );
 
@@ -438,9 +528,9 @@ export default function OutstandingPage() {
         Array.isArray(response?.data)
           ? response.data
           : response?.data?.items ||
-            response?.data?.outstanding ||
-            response?.data?.bills ||
-            [];
+          response?.data?.outstanding ||
+          response?.data?.bills ||
+          [];
 
       setItems(data);
     } catch (error) {
@@ -453,7 +543,7 @@ export default function OutstandingPage() {
 
       showToast(
         error?.message ||
-          "Failed to load outstanding amounts.",
+        "Failed to load outstanding amounts.",
         "error"
       );
     } finally {
@@ -550,7 +640,7 @@ export default function OutstandingPage() {
                 due.getTime()
               ) &&
               due <
-                new Date()
+              new Date()
             ) {
               overdueCount += 1;
             }
@@ -575,14 +665,14 @@ export default function OutstandingPage() {
       1,
       Math.ceil(
         filteredItems.length /
-          itemsPerPage
+        itemsPerPage
       )
     );
 
   const paginatedItems =
     filteredItems.slice(
       (page - 1) *
-        itemsPerPage,
+      itemsPerPage,
       page * itemsPerPage
     );
 
@@ -599,7 +689,7 @@ export default function OutstandingPage() {
 
   function clearFilters() {
     setSearch("");
-    setBillingMonth("");
+    setBillingMonth(currentBillingMonth());
   }
 
   /* =======================================================
@@ -753,24 +843,51 @@ export default function OutstandingPage() {
 
             {/* MONTH */}
 
-            <div className="relative">
+            <div ref={monthPickerRef} className="relative">
+              <button
+                type="button"
+                className="input flex h-11 w-full items-center justify-between text-left"
+                onClick={() => setMonthOpen((current) => !current)}
+                aria-haspopup="listbox"
+                aria-expanded={monthOpen}
+              >
+                <span className="flex items-center gap-2 text-sm text-slate-700">
+                  <CalendarDays size={17} className="text-slate-400" />
+                  {monthLabel(billingMonth)}
+                </span>
+                <ChevronDown size={16} className="text-slate-500" />
+              </button>
 
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="month"
-                value={billingMonth}
-                onChange={(event) =>
-                  setBillingMonth(
-                    event.target.value
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              />
-
+              {monthOpen && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <input
+                    type="search"
+                    value={monthSearch}
+                    onChange={(event) => setMonthSearch(event.target.value)}
+                    placeholder="Search month..."
+                    className="input h-10 w-full"
+                    aria-label="Search billing month"
+                  />
+                  <div className="mt-2 max-h-48 overflow-y-auto" role="listbox">
+                    {filteredMonths.map((month) => (
+                      <button
+                        key={month}
+                        type="button"
+                        role="option"
+                        aria-selected={billingMonth === month}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${billingMonth === month ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-700"}`}
+                        onClick={() => {
+                          setBillingMonth(month);
+                          setMonthSearch("");
+                          setMonthOpen(false);
+                        }}
+                      >
+                        {monthLabel(month)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* CLEAR */}
@@ -922,14 +1039,14 @@ export default function OutstandingPage() {
                             {getMemberMobile(
                               item
                             ) && (
-                              <p className="mt-1 text-xs text-slate-400">
-                                {
-                                  getMemberMobile(
-                                    item
-                                  )
-                                }
-                              </p>
-                            )}
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {
+                                    getMemberMobile(
+                                      item
+                                    )
+                                  }
+                                </p>
+                              )}
 
                           </td>
 
@@ -980,14 +1097,13 @@ export default function OutstandingPage() {
                           <td className="px-5 py-4 text-center">
 
                             {item.billId?._id ||
-                            item.bill?._id ||
-                            item._id ? (
+                              item.bill?._id ||
+                              item._id ? (
                               <Link
-                                href={`/billing/${
-                                  item.billId?._id ||
+                                href={`/billing/${item.billId?._id ||
                                   item.bill?._id ||
                                   item._id
-                                }`}
+                                  }`}
                                 title="View bill"
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600"
                               >
@@ -1054,7 +1170,7 @@ export default function OutstandingPage() {
 
         {!loading &&
           filteredItems.length >
-            0 && (
+          0 && (
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
 
               <p className="text-sm text-slate-500">
@@ -1063,7 +1179,7 @@ export default function OutstandingPage() {
 
                 <span className="font-semibold text-slate-700">
                   {(page - 1) *
-                      itemsPerPage +
+                    itemsPerPage +
                     1}
                 </span>
 
@@ -1072,7 +1188,7 @@ export default function OutstandingPage() {
                 <span className="font-semibold text-slate-700">
                   {Math.min(
                     page *
-                      itemsPerPage,
+                    itemsPerPage,
                     filteredItems.length
                   )}
                 </span>

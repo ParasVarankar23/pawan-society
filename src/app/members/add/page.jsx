@@ -2,6 +2,7 @@
 
 import {
   Fragment,
+  forwardRef,
   useEffect,
   useMemo,
   useRef,
@@ -263,6 +264,9 @@ export default function AddMemberPage({
 
   const roomPickerRef = useRef(null);
 
+  const memberTypeRef = useRef(null);
+  const occupancyTypeRef = useRef(null);
+
   const editing = Boolean(memberId);
 
   /* =======================================================
@@ -338,36 +342,45 @@ export default function AddMemberPage({
   }, [memberId]);
 
   useEffect(() => {
-    function closeRoomPicker(event) {
+    function handleClickOutside(event) {
+      const target = event.target;
+
+      // Close Room dropdown
       if (
         roomPickerRef.current &&
-        !roomPickerRef.current.contains(event.target)
+        !roomPickerRef.current.contains(target)
       ) {
         setRoomPickerOpen(false);
       }
+
+      // Close Member Type dropdown
+      if (
+        memberTypeRef.current &&
+        !memberTypeRef.current.contains(target)
+      ) {
+        setMemberTypeOpen(false);
+      }
+
+      // Close Occupancy Type dropdown
+      if (
+        occupancyTypeRef.current &&
+        !occupancyTypeRef.current.contains(target)
+      ) {
+        setOccupancyOpen(false);
+      }
     }
 
-    document.addEventListener(
-      "mousedown",
-      closeRoomPicker
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        closeRoomPicker
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
   /* =======================================================
      UPDATE
   ======================================================= */
 
-  function updateField(
-    field,
-    value
-  ) {
+  function updateField(field, value) {
     setForm((previous) => ({
       ...previous,
       [field]: value,
@@ -395,6 +408,7 @@ export default function AddMemberPage({
       room.memberId?.name?.toLowerCase().includes(query)
     );
   });
+
 
   let selectedRoomLabel = "Select Room";
 
@@ -753,6 +767,7 @@ export default function AddMemberPage({
                 </label>
 
                 <SearchableMemberOption
+                  ref={memberTypeRef}
                   value={form.memberType}
                   options={[["OWNER", "Owner"], ["TENANT", "Tenant"], ["OTHER", "Other"]]}
                   search={memberTypeSearch}
@@ -773,6 +788,7 @@ export default function AddMemberPage({
                 </label>
 
                 <SearchableMemberOption
+                  ref={occupancyTypeRef}
                   value={form.occupancyType}
                   options={[["SELF", "Self Occupied"], ["RENTED", "Rented"], ["VACANT", "Vacant"]]}
                   search={occupancySearch}
@@ -977,9 +993,11 @@ export default function AddMemberPage({
       </div>
     </PageWrapper>
   );
+
 }
 
-function SearchableMemberOption({
+
+const SearchableMemberOption = forwardRef(({
   value,
   options,
   search,
@@ -988,7 +1006,7 @@ function SearchableMemberOption({
   setOpen,
   onChange,
   placeholder,
-}) {
+}, ref) => {
   const selectedLabel =
     options.find(([optionValue]) => optionValue === value)?.[1] ||
     "Select option";
@@ -997,7 +1015,7 @@ function SearchableMemberOption({
   );
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         className="input flex w-full items-center justify-between text-left"
@@ -1037,4 +1055,4 @@ function SearchableMemberOption({
       )}
     </div>
   );
-}
+});

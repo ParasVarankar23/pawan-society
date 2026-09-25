@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   BarChart3,
   Calendar,
-  IndianRupee,
   RefreshCw,
-  WalletCards,
+  WalletCards
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
+import ReportDownloadActions from "@/components/common/ReportDownloadActions";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const formatCurrency = (value = 0) =>
@@ -79,21 +79,34 @@ export default function YearlyReportPage() {
 
   const income = Number(
     data?.income ??
-      data?.totalIncome ??
-      0
+    data?.totalIncome ??
+    0
   );
 
   const expense = Number(
     data?.expense ??
-      data?.totalExpense ??
-      0
+    data?.totalExpense ??
+    0
   );
 
   const balance = Number(
     data?.balance ??
-      data?.closingBalance ??
-      income - expense
+    data?.closingBalance ??
+    income - expense
   );
+
+  const exportColumns = [
+    { key: "month", label: "Month" },
+    { key: "income", label: "Income" },
+    { key: "expense", label: "Expense" },
+    { key: "balance", label: "Balance" },
+  ];
+  const exportRows = months.map((item) => ({
+    month: item.month || item.billingMonth || "-",
+    income: formatCurrency(item.income || 0),
+    expense: formatCurrency(item.expense || 0),
+    balance: formatCurrency(item.balance || 0),
+  }));
 
   return (
     <AppShell>
@@ -145,6 +158,13 @@ export default function YearlyReportPage() {
             />
             Refresh
           </button>
+
+          <ReportDownloadActions
+            filename={`monthly-report-${year}`}
+            title={`Monthly Report - ${year}`}
+            columns={exportColumns}
+            rows={exportRows}
+          />
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -189,11 +209,10 @@ export default function YearlyReportPage() {
               Closing Balance
             </p>
             <p
-              className={`mt-2 text-2xl font-bold ${
-                balance >= 0
+              className={`mt-2 text-2xl font-bold ${balance >= 0
                   ? "text-indigo-600"
                   : "text-red-600"
-              }`}
+                }`}
             >
               {formatCurrency(balance)}
             </p>

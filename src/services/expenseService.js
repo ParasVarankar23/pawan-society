@@ -1,8 +1,9 @@
 import Expense from "@/models/Expense";
 import ExpenseCategory from "@/models/ExpenseCategory";
 
-import { connectDB } from "@/lib/mongodb";
+import { DEFAULT_EXPENSE_CATEGORIES } from "@/constants/expenseCategories";
 import { createFinancialTransaction } from "@/lib/accounting/transaction";
+import { connectDB } from "@/lib/mongodb";
 
 export async function createExpense({
   data,
@@ -49,6 +50,16 @@ export async function createExpenseCategory(data) {
 
 export async function getExpenseCategories() {
   await connectDB();
+
+  await Promise.all(
+    DEFAULT_EXPENSE_CATEGORIES.map((category) =>
+      ExpenseCategory.updateOne(
+        { name: category.name },
+        { $setOnInsert: category },
+        { upsert: true }
+      )
+    )
+  );
 
   return ExpenseCategory.find({
     status: "ACTIVE",

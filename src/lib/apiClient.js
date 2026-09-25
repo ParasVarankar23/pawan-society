@@ -76,7 +76,7 @@ async function request(
 
     const error = new Error(
       result.message ||
-        "Something went wrong"
+      "Something went wrong"
     );
 
     error.status = response.status;
@@ -109,6 +109,43 @@ export const api = {
     return request(endpoint, {
       method: "DELETE",
     });
+  },
+
+  async upload(endpoint, body, retry = true) {
+    const response = await fetch(
+      `${API_BASE_URL}${endpoint}`,
+      {
+        method: "POST",
+        credentials: "include",
+        body,
+      }
+    );
+
+    let result;
+
+    try {
+      result = await response.json();
+    } catch {
+      result = {
+        success: false,
+        message: "Invalid server response",
+      };
+    }
+
+    if (!response.ok) {
+      if (retry && shouldRefresh(endpoint, response.status)) {
+        await refreshSession();
+        return api.upload(endpoint, body, false);
+      }
+
+      const error = new Error(
+        result.message || "Something went wrong"
+      );
+      error.status = response.status;
+      throw error;
+    }
+
+    return result;
   },
 };
 

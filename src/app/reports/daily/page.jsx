@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -10,9 +8,12 @@ import {
   RefreshCw,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
+import ReportDownloadActions from "@/components/common/ReportDownloadActions";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const formatCurrency = (value = 0) =>
@@ -98,41 +99,56 @@ export default function DailyReportPage() {
   const income =
     Number(
       data?.income ??
-        data?.totalIncome ??
-        transactions
-          .filter(
-            (item) =>
-              String(item.type).toUpperCase() === "INCOME"
-          )
-          .reduce(
-            (sum, item) =>
-              sum + Number(item.amount || 0),
-            0
-          )
+      data?.totalIncome ??
+      transactions
+        .filter(
+          (item) =>
+            String(item.type).toUpperCase() === "INCOME"
+        )
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.amount || 0),
+          0
+        )
     ) || 0;
 
   const expense =
     Number(
       data?.expense ??
-        data?.totalExpense ??
-        transactions
-          .filter(
-            (item) =>
-              String(item.type).toUpperCase() === "EXPENSE"
-          )
-          .reduce(
-            (sum, item) =>
-              sum + Number(item.amount || 0),
-            0
-          )
+      data?.totalExpense ??
+      transactions
+        .filter(
+          (item) =>
+            String(item.type).toUpperCase() === "EXPENSE"
+        )
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.amount || 0),
+          0
+        )
     ) || 0;
 
   const balance =
     Number(
       data?.balance ??
-        data?.closingBalance ??
-        income - expense
+      data?.closingBalance ??
+      income - expense
     ) || 0;
+
+  const exportColumns = [
+    { key: "date", label: "Date" },
+    { key: "description", label: "Particular" },
+    { key: "category", label: "Category" },
+    { key: "type", label: "Type" },
+    { key: "amount", label: "Amount" },
+  ];
+  const exportRows = transactions.map((item) => ({
+    date: formatDate(item.transactionDate || item.date),
+    description: item.description || item.particular || "-",
+    category: item.category?.name || item.category || "-",
+    type: String(item.type || "").toUpperCase() === "INCOME" ? "Income" : "Expense",
+    amount: formatCurrency(item.amount),
+  }));
 
   return (
     <AppShell>
@@ -167,17 +183,25 @@ export default function DailyReportPage() {
             </p>
           </div>
 
-          <button
-            onClick={loadReport}
-            disabled={refreshing}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
-          >
-            <RefreshCw
-              size={17}
-              className={refreshing ? "animate-spin" : ""}
+          <div className="flex flex-wrap gap-2">
+            <ReportDownloadActions
+              filename={`daily-report-${date}`}
+              title={`Daily Report - ${formatDate(date)}`}
+              columns={exportColumns}
+              rows={exportRows}
             />
-            Refresh
-          </button>
+            <button
+              onClick={loadReport}
+              disabled={refreshing}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+            >
+              <RefreshCw
+                size={17}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -235,11 +259,10 @@ export default function DailyReportPage() {
             </div>
 
             <p
-              className={`mt-3 text-2xl font-bold ${
-                balance >= 0
+              className={`mt-3 text-2xl font-bold ${balance >= 0
                   ? "text-emerald-600"
                   : "text-red-600"
-              }`}
+                }`}
             >
               {formatCurrency(balance)}
             </p>
@@ -307,7 +330,7 @@ export default function DailyReportPage() {
                         <td className="px-5 py-4 text-sm text-slate-600">
                           {formatDate(
                             item.transactionDate ||
-                              item.date
+                            item.date
                           )}
                         </td>
 
@@ -325,11 +348,10 @@ export default function DailyReportPage() {
 
                         <td className="px-5 py-4">
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                              isIncome
+                            className={`rounded-full border px-2.5 py-1 text-xs font-bold ${isIncome
                                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                                 : "border-red-200 bg-red-50 text-red-700"
-                            }`}
+                              }`}
                           >
                             {isIncome
                               ? "Income"
@@ -338,11 +360,10 @@ export default function DailyReportPage() {
                         </td>
 
                         <td
-                          className={`px-5 py-4 text-right font-bold ${
-                            isIncome
+                          className={`px-5 py-4 text-right font-bold ${isIncome
                               ? "text-emerald-600"
                               : "text-red-600"
-                          }`}
+                            }`}
                         >
                           {formatCurrency(item.amount)}
                         </td>

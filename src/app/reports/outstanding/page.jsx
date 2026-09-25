@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
-  CalendarDays,
+  ChevronDown,
   IndianRupee,
   RefreshCw,
   Search,
   Users,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const formatCurrency = (value = 0) =>
@@ -37,13 +37,55 @@ const formatDate = (value) => {
   });
 };
 
+function currentBillingMonth() {
+  const date = new Date();
+
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}`;
+}
+
+function monthLabel(month) {
+  if (!month) return "All months";
+
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString(
+    "en-IN",
+    { month: "long", year: "numeric" }
+  );
+}
+
+function getMonthOptions() {
+  const options = [];
+  const date = new Date();
+
+  for (let offset = 0; offset < 24; offset += 1) {
+    const optionDate = new Date(
+      date.getFullYear(),
+      date.getMonth() - offset,
+      1
+    );
+    options.push(
+      `${optionDate.getFullYear()}-${String(
+        optionDate.getMonth() + 1
+      ).padStart(2, "0")}`
+    );
+  }
+
+  return options;
+}
+
+const monthOptions = getMonthOptions();
+
 export default function OutstandingReportPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [billingMonth, setBillingMonth] = useState("");
+  const [billingMonth, setBillingMonth] = useState(currentBillingMonth);
+  const [monthSearch, setMonthSearch] = useState("");
+  const [monthOpen, setMonthOpen] = useState(false);
+  const monthPickerRef = useRef(null);
 
   const [toast, setToast] = useState({
     show: false,
@@ -58,14 +100,35 @@ export default function OutstandingReportPage() {
       message,
     });
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        monthPickerRef.current &&
+        !monthPickerRef.current.contains(event.target)
+      ) {
+        setMonthOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filteredMonths = monthOptions.filter((month) =>
+    monthLabel(month).toLowerCase().includes(monthSearch.trim().toLowerCase())
+  );
+
   async function loadReport() {
     try {
       setRefreshing(true);
 
       const query = billingMonth
         ? `?billingMonth=${encodeURIComponent(
-            billingMonth
-          )}`
+          billingMonth
+        )}`
         : "";
 
       const response = await api.get(
@@ -75,9 +138,9 @@ export default function OutstandingReportPage() {
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
-          response?.data?.outstanding ||
-          response?.data?.bills ||
-          [];
+        response?.data?.outstanding ||
+        response?.data?.bills ||
+        [];
 
       setItems(data);
     } catch (error) {
@@ -85,7 +148,7 @@ export default function OutstandingReportPage() {
 
       showToast(
         error?.message ||
-          "Failed to load outstanding report.",
+        "Failed to load outstanding report.",
         "error"
       );
     } finally {
@@ -123,9 +186,9 @@ export default function OutstandingReportPage() {
       sum +
       Number(
         item.balanceAmount ??
-          item.outstandingAmount ??
-          item.balance ??
-          0
+        item.outstandingAmount ??
+        item.balance ??
+        0
       ),
     0
   );
@@ -198,14 +261,51 @@ export default function OutstandingReportPage() {
               />
             </div>
 
-            <input
-              type="month"
-              value={billingMonth}
-              onChange={(e) =>
-                setBillingMonth(e.target.value)
-              }
-              className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-500"
-            />
+            <div ref={monthPickerRef} className="relative">
+              <button
+                type="button"
+                className="input flex h-11 w-full items-center justify-between text-left"
+                onClick={() => setMonthOpen((current) => !current)}
+                aria-haspopup="listbox"
+                aria-expanded={monthOpen}
+              >
+                <span className="text-sm text-slate-700">
+                  {monthLabel(billingMonth)}
+                </span>
+                <ChevronDown size={16} className="text-slate-500" />
+              </button>
+
+              {monthOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-full min-w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <input
+                    type="search"
+                    value={monthSearch}
+                    onChange={(event) => setMonthSearch(event.target.value)}
+                    placeholder="Search month..."
+                    className="input h-10 w-full"
+                    aria-label="Search billing month"
+                  />
+                  <div className="mt-2 max-h-48 overflow-y-auto" role="listbox">
+                    {filteredMonths.map((month) => (
+                      <button
+                        key={month}
+                        type="button"
+                        role="option"
+                        aria-selected={billingMonth === month}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${billingMonth === month ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-700"}`}
+                        onClick={() => {
+                          setBillingMonth(month);
+                          setMonthSearch("");
+                          setMonthOpen(false);
+                        }}
+                      >
+                        {monthLabel(month)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -287,9 +387,9 @@ export default function OutstandingReportPage() {
                   filteredItems.map((item, index) => {
                     const amount = Number(
                       item.balanceAmount ??
-                        item.outstandingAmount ??
-                        item.balance ??
-                        0
+                      item.outstandingAmount ??
+                      item.balance ??
+                      0
                     );
 
                     return (

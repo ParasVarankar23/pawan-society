@@ -1,5 +1,5 @@
-import ElectricityBill from "@/models/ElectricityBill";
 import { connectDB } from "@/lib/mongodb";
+import ElectricityBill from "@/models/ElectricityBill";
 
 export async function createElectricityBill({
   data,
@@ -32,4 +32,10 @@ export async function updateElectricityBill(id, data) {
       runValidators: true,
     }
   );
+}
+
+export async function deleteElectricityBill(id) {
+  await connectDB();
+
+  return ElectricityBill.findByIdAndDelete(id);
 }

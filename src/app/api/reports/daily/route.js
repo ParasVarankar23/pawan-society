@@ -6,9 +6,9 @@ import {
 } from "@/app/api/_utils";
 
 import {
-  getIncomeReport,
-  getExpenseReport,
   getCollectionReport,
+  getExpenseReport,
+  getIncomeReport,
 } from "@/services/reportService";
 
 export async function GET(request) {
@@ -62,6 +62,14 @@ export async function GET(request) {
         expenses: expenses.total,
         collection:
           collection.total,
+        transactions: [
+          ...income.transactions,
+          ...expenses.transactions,
+        ].sort(
+          (first, second) =>
+            new Date(first.transactionDate) -
+            new Date(second.transactionDate)
+        ),
       });
     })
   );
