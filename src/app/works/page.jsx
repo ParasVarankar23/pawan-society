@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  CalendarDays,
   Eye,
   Hammer,
-  IndianRupee,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
-  WalletCards,
+  Trash2,
+  WalletCards
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const formatCurrency = (value = 0) =>
@@ -90,8 +90,8 @@ export default function WorksPage() {
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
-          response?.data?.works ||
-          [];
+        response?.data?.works ||
+        [];
 
       setWorks(data);
     } catch (error) {
@@ -156,6 +156,23 @@ export default function WorksPage() {
       sum + Number(item.actualCost || 0),
     0
   );
+
+  async function deleteWork(work) {
+    if (!window.confirm(`Cancel work "${work.workName || "this work"}"?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/works/${work._id}`);
+      await loadWorks();
+      showToast("Society work cancelled successfully.");
+    } catch (error) {
+      showToast(
+        error?.message || "Failed to cancel society work.",
+        "error"
+      );
+    }
+  }
 
   return (
     <AppShell>
@@ -278,9 +295,9 @@ export default function WorksPage() {
             </h2>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="max-h-[620px] overflow-auto">
             <table className="w-full min-w-[1200px]">
-              <thead className="bg-slate-50">
+              <thead className="sticky top-0 z-10 bg-slate-50">
                 <tr className="text-left text-xs font-bold uppercase text-slate-500">
                   <th className="px-5 py-4">Work</th>
                   <th className="px-5 py-4">Category</th>
@@ -371,13 +388,31 @@ export default function WorksPage() {
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-center">
-                        <Link
-                          href={`/works/${work._id}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
-                        >
-                          <Eye size={16} />
-                        </Link>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-center gap-1">
+                          <Link
+                            href={`/works/${work._id}`}
+                            title="View work"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
+                          >
+                            <Eye size={16} />
+                          </Link>
+                          <Link
+                            href={`/works/${work._id}`}
+                            title="Edit work"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-amber-50 hover:text-amber-600"
+                          >
+                            <Pencil size={16} />
+                          </Link>
+                          <button
+                            type="button"
+                            title="Delete work"
+                            onClick={() => deleteWork(work)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -11,8 +11,8 @@ import {
   useSearchParams,
 } from "next/navigation";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 function currentMonth() {
@@ -24,7 +24,13 @@ function currentMonth() {
 }
 
 function defaultDueDate(month) {
-  return `${month}-10`;
+  const billingDate = new Date(`${month}-01T00:00:00`);
+  billingDate.setMonth(billingDate.getMonth() + 1);
+  billingDate.setDate(15);
+
+  return `${billingDate.getFullYear()}-${String(
+    billingDate.getMonth() + 1
+  ).padStart(2, "0")}-15`;
 }
 
 function formatMonth(month) {
@@ -61,6 +67,8 @@ function GenerateBillingPageContent() {
   const [rooms, setRooms] = useState([]);
   const [existingRoomIds, setExistingRoomIds] = useState(new Set());
   const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [roomSearch, setRoomSearch] = useState("");
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
@@ -89,7 +97,13 @@ function GenerateBillingPageContent() {
           ? billsResult.data
           : billsResult.data?.bills || [];
 
-        setRooms(activeRooms);
+        setRooms(
+          activeRooms.sort(
+            (firstRoom, secondRoom) =>
+              Number(firstRoom.roomNumber) -
+              Number(secondRoom.roomNumber)
+          )
+        );
         setExistingRoomIds(
           new Set(bills.map((bill) => String(bill.roomId?._id || bill.roomId)))
         );
@@ -109,9 +123,34 @@ function GenerateBillingPageContent() {
 
   const roomsToGenerate = selectedRoomId
     ? eligibleRooms.filter(
-        (room) => String(room._id) === selectedRoomId
-      )
+      (room) => String(room._id) === selectedRoomId
+    )
     : eligibleRooms;
+
+  const filteredRooms = eligibleRooms.filter((room) => {
+    const query = roomSearch.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return (
+      String(room.roomNumber).toLowerCase().includes(query) ||
+      room.memberId?.name?.toLowerCase().includes(query)
+    );
+  });
+
+  const selectedRoom = eligibleRooms.find(
+    (room) => String(room._id) === selectedRoomId
+  );
+
+  let selectedRoomLabel = "All eligible rooms";
+
+  if (selectedRoom) {
+    selectedRoomLabel = `Room ${selectedRoom.roomNumber}`;
+
+    if (selectedRoom.memberId?.name) {
+      selectedRoomLabel += ` · ${selectedRoom.memberId.name}`;
+    }
+  }
 
   async function generateBills(event) {
     event.preventDefault();
@@ -121,17 +160,26 @@ function GenerateBillingPageContent() {
 
     let created = 0;
     let failed = 0;
+    let emailFailed = 0;
+    const failureMessages = [];
 
     for (const room of roomsToGenerate) {
       try {
-        await api.post("/billing/generate", {
+        const response = await api.post("/billing/generate", {
           roomId: room._id,
           billingMonth: month,
           dueDate,
         });
         created += 1;
-      } catch {
+
+        if (response.data?.emailStatus === "FAILED") {
+          emailFailed += 1;
+        }
+      } catch (error) {
         failed += 1;
+        if (error?.message) {
+          failureMessages.push(error.message);
+        }
       }
     }
 
@@ -139,7 +187,15 @@ function GenerateBillingPageContent() {
       created,
       skipped: roomsToGenerate.length - created - failed,
       failed,
+      emailFailed,
     });
+    if (failureMessages.length > 0) {
+      setError(failureMessages[0]);
+    } else if (emailFailed > 0) {
+      setError(
+        `${emailFailed} bill${emailFailed === 1 ? "" : "s"} created, but email delivery failed. Check the Emails page for details.`
+      );
+    }
     setGenerating(false);
 
     if (created > 0 && failed === 0) {
@@ -149,6 +205,8 @@ function GenerateBillingPageContent() {
           ...roomsToGenerate.map((room) => String(room._id)),
         ])
       );
+
+      router.push("/billing");
     }
   }
 
@@ -186,26 +244,71 @@ function GenerateBillingPageContent() {
           <div className="grid gap-5 sm:grid-cols-3">
             <div>
               <label className="label" htmlFor="billing-room">Room</label>
-              <select
-                id="billing-room"
-                className="input"
-                value={selectedRoomId}
-                onChange={(event) => setSelectedRoomId(event.target.value)}
-                disabled={loading || generating}
-              >
-                <option value="">All eligible rooms</option>
-                {rooms.map((room) => {
-                  const roomId = String(room._id);
-                  const alreadyGenerated = existingRoomIds.has(roomId);
+              <div className="relative">
+                <button
+                  id="billing-room"
+                  type="button"
+                  className="input flex w-full items-center justify-between text-left disabled:opacity-50"
+                  onClick={() => setRoomPickerOpen((open) => !open)}
+                  disabled={loading || generating}
+                  aria-haspopup="listbox"
+                  aria-expanded={roomPickerOpen}
+                >
+                  <span className={selectedRoom ? "text-slate-800" : "text-slate-500"}>
+                    {selectedRoomLabel}
+                  </span>
+                  <span className="text-slate-400">▾</span>
+                </button>
 
-                  return (
-                    <option key={roomId} value={roomId}>
-                      Room {room.roomNumber}
-                      {` · ${roomOptionLabel(room, alreadyGenerated)}`}
-                    </option>
-                  );
-                })}
-              </select>
+                {roomPickerOpen && !loading && (
+                  <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                    <input
+                      type="search"
+                      value={roomSearch}
+                      onChange={(event) => setRoomSearch(event.target.value)}
+                      placeholder="Search room or member..."
+                      className="input mb-2 h-10 w-full"
+                    />
+
+                    <div
+                      className="max-h-32 overflow-y-auto overscroll-contain"
+                      role="listbox"
+                      aria-label="Eligible rooms"
+                    >
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={!selectedRoomId}
+                        onClick={() => {
+                          setSelectedRoomId("");
+                          setRoomPickerOpen(false);
+                          setRoomSearch("");
+                        }}
+                        className={`block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${!selectedRoomId ? "bg-slate-100 font-semibold text-slate-950" : "text-slate-700"}`}
+                      >
+                        All eligible rooms
+                      </button>
+
+                      {filteredRooms.map((room) => (
+                        <button
+                          key={room._id}
+                          type="button"
+                          role="option"
+                          aria-selected={String(room._id) === selectedRoomId}
+                          onClick={() => {
+                            setSelectedRoomId(String(room._id));
+                            setRoomPickerOpen(false);
+                            setRoomSearch("");
+                          }}
+                          className={`block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${String(room._id) === selectedRoomId ? "bg-slate-100 font-semibold text-slate-950" : "text-slate-700"}`}
+                        >
+                          Room {room.roomNumber} · {room.memberId.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="label" htmlFor="billing-month">Billing month *</label>

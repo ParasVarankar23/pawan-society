@@ -1,6 +1,6 @@
-import Room from "@/models/Room";
-import Member from "@/models/Member";
 import { connectDB } from "@/lib/mongodb";
+import Member from "@/models/Member";
+import Room from "@/models/Room";
 
 export async function createRoom(data) {
   await connectDB();
@@ -14,7 +14,9 @@ export async function getRooms({
 } = {}) {
   await connectDB();
 
-  const query = {};
+  const query = {
+    status: "ACTIVE",
+  };
 
   if (search) {
     query.roomNumber = {
@@ -30,6 +32,10 @@ export async function getRooms({
   return Room.find(query)
     .populate("memberId")
     .sort({ roomNumber: 1 })
+    .collation({
+      locale: "en",
+      numericOrdering: true,
+    })
     .lean();
 }
 

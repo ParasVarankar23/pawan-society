@@ -10,17 +10,6 @@ const RoomSchema = new mongoose.Schema(
       index: true,
     },
 
-    wing: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    floor: {
-      type: Number,
-      default: 0,
-    },
-
     areaSqFt: {
       type: Number,
       default: 0,
@@ -46,8 +35,8 @@ const RoomSchema = new mongoose.Schema(
     },
 
     parking: {
-      type: String,
-      default: "",
+      type: Boolean,
+      default: false,
     },
 
     parkingCount: {

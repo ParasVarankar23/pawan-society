@@ -1,13 +1,13 @@
-import Payment from "@/models/Payment";
 import Bill from "@/models/Bill";
 import Member from "@/models/Member";
+import Payment from "@/models/Payment";
 import Receipt from "@/models/Receipt";
 
-import { connectDB } from "@/lib/mongodb";
-import { createFinancialTransaction } from "@/lib/accounting/transaction";
 import { createLedgerEntry } from "@/lib/accounting/ledger";
-import { createReceipt } from "@/services/receiptService";
+import { createFinancialTransaction } from "@/lib/accounting/transaction";
+import { connectDB } from "@/lib/mongodb";
 import { sendReceipt } from "@/services/emailService";
+import { createReceipt } from "@/services/receiptService";
 
 export async function createPayment({
   data,
@@ -21,8 +21,10 @@ export async function createPayment({
     status: "SUCCESS",
   });
 
+  let bill = null;
+
   if (data.billId) {
-    const bill = await Bill.findById(data.billId);
+    bill = await Bill.findById(data.billId);
 
     if (!bill) {
       throw new Error("Bill not found");
@@ -72,7 +74,13 @@ export async function createPayment({
 
   const receipt = await createReceipt({
     payment,
+    billingMonth: bill?.billingMonth || "",
   });
+
+  await Receipt.findByIdAndUpdate(
+    receipt._id,
+    { $set: { emailStatus: "PENDING" } }
+  );
 
   const member = await Member.findById(
     payment.memberId
@@ -103,6 +111,11 @@ export async function createPayment({
         }
       );
     } catch (error) {
+      console.error(
+        `Receipt email failed for receipt ${receipt.receiptNumber}:`,
+        error
+      );
+
       await Receipt.findByIdAndUpdate(
         receipt._id,
         { $set: { emailStatus: "FAILED" } }

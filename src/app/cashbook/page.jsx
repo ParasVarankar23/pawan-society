@@ -1,9 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
   BookOpen,
   CalendarDays,
   ChevronLeft,
@@ -12,9 +9,10 @@ import {
   Search,
   WalletCards,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const formatCurrency = (value = 0) =>
@@ -38,14 +36,32 @@ const formatDate = (value) => {
   });
 };
 
+const currentMonthStart = () => {
+  const date = new Date();
+  date.setDate(1);
+  return date.toISOString().split("T")[0];
+};
+
+const currentDate = () =>
+  new Date().toISOString().split("T")[0];
+
+const formatPaymentMode = (value) => {
+  if (!value) return "-";
+
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
 export default function CashBookPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(currentMonthStart);
+  const [toDate, setToDate] = useState(currentDate);
 
   const [page, setPage] = useState(1);
 
@@ -71,21 +87,22 @@ export default function CashBookPage() {
 
       const params = new URLSearchParams();
 
-      if (fromDate) params.set("fromDate", fromDate);
-      if (toDate) params.set("toDate", toDate);
+      if (fromDate) params.set("startDate", fromDate);
+      if (toDate) params.set("endDate", toDate);
 
       const query = params.toString();
+      const endpoint = query
+        ? `/cashbook?${query}`
+        : "/cashbook";
 
-      const response = await api.get(
-        `/cashbook${query ? `?${query}` : ""}`
-      );
+      const response = await api.get(endpoint);
 
       const data = Array.isArray(response?.data)
         ? response.data
         : response?.data?.items ||
-          response?.data?.transactions ||
-          response?.data?.cashbook ||
-          [];
+        response?.data?.transactions ||
+        response?.data?.cashbook ||
+        [];
 
       setTransactions(data);
     } catch (error) {
@@ -231,11 +248,10 @@ export default function CashBookPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">Closing Balance</p>
             <p
-              className={`mt-2 text-2xl font-bold ${
-                summary.balance >= 0
-                  ? "text-emerald-600"
-                  : "text-red-600"
-              }`}
+              className={`mt-2 text-2xl font-bold ${summary.balance >= 0
+                ? "text-emerald-600"
+                : "text-red-600"
+                }`}
             >
               {formatCurrency(summary.balance)}
             </p>
@@ -306,6 +322,7 @@ export default function CashBookPage() {
                   <th className="px-5 py-4">Sr. No.</th>
                   <th className="px-5 py-4">Date</th>
                   <th className="px-5 py-4">Particular</th>
+                  <th className="px-5 py-4">Payment Details</th>
                   <th className="px-5 py-4">Type</th>
                   <th className="px-5 py-4 text-right">Income</th>
                   <th className="px-5 py-4 text-right">Expense</th>
@@ -317,7 +334,7 @@ export default function CashBookPage() {
                 {loading ? (
                   Array.from({ length: 7 }).map((_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 7 }).map((__, cell) => (
+                      {Array.from({ length: 8 }).map((__, cell) => (
                         <td key={cell} className="px-5 py-5">
                           <div className="h-4 animate-pulse rounded bg-slate-100" />
                         </td>
@@ -326,7 +343,7 @@ export default function CashBookPage() {
                   ))
                 ) : paginatedTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center">
+                    <td colSpan={8} className="px-5 py-16 text-center">
                       <WalletCards
                         size={40}
                         className="mx-auto text-slate-300"
@@ -369,12 +386,23 @@ export default function CashBookPage() {
                         </td>
 
                         <td className="px-5 py-4">
+                          <p className="font-semibold text-slate-800">
+                            {formatPaymentMode(item.paymentMode)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {item.memberId?.name || ""}
+                            {item.roomId?.roomNumber
+                              ? ` · Room ${item.roomId.roomNumber}`
+                              : ""}
+                          </p>
+                        </td>
+
+                        <td className="px-5 py-4">
                           <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${
-                              isIncome
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-red-200 bg-red-50 text-red-700"
-                            }`}
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${isIncome
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-red-50 text-red-700"
+                              }`}
                           >
                             {isIncome ? "Income" : "Expense"}
                           </span>
@@ -395,8 +423,8 @@ export default function CashBookPage() {
                         <td className="px-5 py-4 text-right font-bold text-slate-800">
                           {formatCurrency(
                             item.balance ??
-                              item.runningBalance ??
-                              0
+                            item.runningBalance ??
+                            0
                           )}
                         </td>
                       </tr>

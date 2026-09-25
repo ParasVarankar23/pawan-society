@@ -139,9 +139,10 @@ export function calculateMonthlyBill({
     });
 
   return {
+    ...outstanding,
     currentCharges,
+    currentChargesTotal: outstanding.currentCharges,
     water: waterDetails,
     penalty: penaltyDetails,
-    ...outstanding,
   };
 }

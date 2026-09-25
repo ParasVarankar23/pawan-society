@@ -1,17 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Mail, Server } from "lucide-react";
+import Link from "next/link";
 
 import AppShell from "@/components/layout/AppShell";
 
 const settings = [
   ["SMTP_HOST", "SMTP server hostname"],
-  ["SMTP_PORT", "SMTP server port, usually 465 or 587"],
+  ["SMTP_PORT", "SMTP server port, usually 465 (TLS) or 587 (STARTTLS)"],
   ["SMTP_SECURE", "Use true for secure SMTP connections"],
   ["SMTP_USER", "SMTP account username"],
   ["SMTP_PASSWORD", "SMTP account password"],
-  ["EMAIL_FROM", "Sender address shown on outgoing emails"],
+  ["SMTP_FROM", "Sender address shown on outgoing emails"],
 ];
 
 export default function EmailSettingsPage() {

@@ -9,8 +9,8 @@ import {
   useRouter,
 } from "next/navigation";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 const initialForm = {
@@ -40,6 +40,14 @@ export default function AddWorkPage() {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [categories, setCategories] = useState([]);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [statusSearch, setStatusSearch] = useState("");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [paymentStatusSearch, setPaymentStatusSearch] = useState("");
+  const [paymentStatusOpen, setPaymentStatusOpen] = useState(false);
+  const [paymentModeSearch, setPaymentModeSearch] = useState("");
+  const [paymentModeOpen, setPaymentModeOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -68,6 +76,14 @@ export default function AddWorkPage() {
       [field]: value,
     }));
   }
+
+  const filteredCategories = categories.filter((category) => {
+    const label = typeof category === "string"
+      ? category
+      : category.label || category.name || category.value || "";
+
+    return label.toLowerCase().includes(categorySearch.trim().toLowerCase());
+  });
 
   async function submit(event) {
     event.preventDefault();
@@ -153,21 +169,64 @@ export default function AddWorkPage() {
               </div>
               <div>
                 <label className="label" htmlFor="work-category">Category *</label>
-                <select
-                  id="work-category"
-                  className="input"
-                  value={form.category}
-                  onChange={(event) => updateField("category", event.target.value)}
-                  disabled={loading}
-                  required
-                >
-                  <option value="">{loading ? "Loading categories..." : "Select category"}</option>
-                  {categories.map((category) => {
-                    const value = typeof category === "string" ? category : category.value || category.name;
-                    const label = typeof category === "string" ? category : category.label || category.name || value;
-                    return <option key={value} value={value}>{label}</option>;
-                  })}
-                </select>
+                <div className="relative">
+                  <button
+                    id="work-category"
+                    type="button"
+                    className="input flex w-full items-center justify-between text-left"
+                    onClick={() => setCategoryOpen((open) => !open)}
+                    disabled={loading}
+                    aria-haspopup="listbox"
+                    aria-expanded={categoryOpen}
+                  >
+                    <span className={form.category ? "text-slate-800" : "text-slate-400"}>
+                      {form.category || (loading ? "Loading categories..." : "Select category")}
+                    </span>
+                    <span className="text-slate-400">▾</span>
+                  </button>
+
+                  {categoryOpen && (
+                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <input
+                        className="input"
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Search category..."
+                        aria-label="Search work categories"
+                      />
+                      <div className="mt-2 max-h-56 overflow-y-auto">
+                        <button
+                          type="button"
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50"
+                          onClick={() => {
+                            updateField("category", "");
+                            setCategoryOpen(false);
+                          }}
+                        >
+                          Select category
+                        </button>
+                        {filteredCategories.map((category) => {
+                          const value = typeof category === "string" ? category : category.value || category.name;
+                          const label = typeof category === "string" ? category : category.label || category.name || value;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                              onClick={() => {
+                                updateField("category", value);
+                                setCategorySearch("");
+                                setCategoryOpen(false);
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="label" htmlFor="vendor-name">Vendor</label>
@@ -180,17 +239,21 @@ export default function AddWorkPage() {
                 />
               </div>
               <div>
-                <label className="label" htmlFor="work-status">Status</label>
-                <select
-                  id="work-status"
-                  className="input"
-                  value={form.status}
-                  onChange={(event) => updateField("status", event.target.value)}
-                >
-                  <option value="PLANNED">Planned</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
+                <p className="label">Status</p>
+                <div className="relative">
+                  <button type="button" className="input flex w-full items-center justify-between text-left" onClick={() => setStatusOpen((open) => !open)} aria-expanded={statusOpen}>
+                    <span className="text-slate-800">{statusLabel(form.status)}</span>
+                    <span className="text-slate-400">▾</span>
+                  </button>
+                  {statusOpen && (
+                    <StatusMenu
+                      search={statusSearch}
+                      setSearch={setStatusSearch}
+                      value={form.status}
+                      onChange={(value) => { updateField("status", value); setStatusSearch(""); setStatusOpen(false); }}
+                    />
+                  )}
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="work-description">Description</label>
@@ -239,16 +302,24 @@ export default function AddWorkPage() {
                 <input id="bill-number" className="input" value={form.billNumber} onChange={(event) => updateField("billNumber", event.target.value)} />
               </div>
               <div>
-                <label className="label" htmlFor="payment-status">Payment status</label>
-                <select id="payment-status" className="input" value={form.paymentStatus} onChange={(event) => updateField("paymentStatus", event.target.value)}>
-                  <option value="UNPAID">Unpaid</option>
-                  <option value="PARTIAL">Partial</option>
-                  <option value="PAID">Paid</option>
-                </select>
+                <p className="label">Payment status</p>
+                <div className="relative">
+                  <button type="button" className="input flex w-full items-center justify-between text-left" onClick={() => setPaymentStatusOpen((open) => !open)} aria-expanded={paymentStatusOpen}>
+                    <span className="text-slate-800">{paymentStatusLabel(form.paymentStatus)}</span>
+                    <span className="text-slate-400">▾</span>
+                  </button>
+                  {paymentStatusOpen && <SearchableMenu search={paymentStatusSearch} setSearch={setPaymentStatusSearch} value={form.paymentStatus} onChange={(value) => { updateField("paymentStatus", value); setPaymentStatusSearch(""); setPaymentStatusOpen(false); }} options={paymentStatusOptions} placeholder="Search payment status..." />}
+                </div>
               </div>
               <div>
-                <label className="label" htmlFor="payment-mode">Payment mode</label>
-                <input id="payment-mode" className="input" value={form.paymentMode} onChange={(event) => updateField("paymentMode", event.target.value)} placeholder="Cash, UPI, bank" />
+                <p className="label">Payment mode</p>
+                <div className="relative">
+                  <button type="button" className="input flex w-full items-center justify-between text-left" onClick={() => setPaymentModeOpen((open) => !open)} aria-expanded={paymentModeOpen}>
+                    <span className={form.paymentMode ? "text-slate-800" : "text-slate-400"}>{form.paymentMode || "Select payment mode"}</span>
+                    <span className="text-slate-400">▾</span>
+                  </button>
+                  {paymentModeOpen && <SearchableMenu search={paymentModeSearch} setSearch={setPaymentModeSearch} value={form.paymentMode} onChange={(value) => { updateField("paymentMode", value); setPaymentModeSearch(""); setPaymentModeOpen(false); }} options={paymentModeOptions} placeholder="Search payment mode..." />}
+                </div>
               </div>
               <div>
                 <label className="label" htmlFor="payment-date">Payment date</label>
@@ -270,5 +341,60 @@ export default function AddWorkPage() {
         </form>
       </div>
     </AppShell>
+  );
+}
+
+const statusOptions = [
+  ["PLANNED", "Planned"],
+  ["IN_PROGRESS", "In Progress"],
+  ["COMPLETED", "Completed"],
+];
+
+function statusLabel(value) {
+  return statusOptions.find(([optionValue]) => optionValue === value)?.[1] || "Planned";
+}
+
+function StatusMenu({ search, setSearch, value, onChange }) {
+  return <SearchableMenu search={search} setSearch={setSearch} value={value} onChange={onChange} options={statusOptions} placeholder="Search status..." />;
+}
+
+const paymentStatusOptions = [
+  ["UNPAID", "Unpaid"],
+  ["PARTIAL", "Partial"],
+  ["PAID", "Paid"],
+];
+
+const paymentModeOptions = [
+  ["CASH", "Cash"],
+  ["CHEQUE", "Cheque"],
+  ["BANK_TRANSFER", "Bank Transfer"],
+  ["UPI", "UPI"],
+  ["GPAY", "Google Pay"],
+  ["PAYTM", "Paytm"],
+  ["PHONEPE", "PhonePe"],
+  ["NEFT", "NEFT"],
+  ["RTGS", "RTGS"],
+  ["IMPS", "IMPS"],
+  ["OTHER", "Other"],
+];
+
+function paymentStatusLabel(value) {
+  return paymentStatusOptions.find(([optionValue]) => optionValue === value)?.[1] || "Unpaid";
+}
+
+function SearchableMenu({ search, setSearch, value, onChange, options, placeholder }) {
+  const filteredOptions = options.filter(([, label]) => label.toLowerCase().includes(search.trim().toLowerCase()));
+
+  return (
+    <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+      <input className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={placeholder} aria-label={placeholder} />
+      <div className="mt-2 max-h-40 overflow-y-auto">
+        {filteredOptions.map(([optionValue, label]) => (
+          <button key={optionValue} type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${value === optionValue ? "bg-slate-50 font-semibold text-slate-900" : "text-slate-700"}`} onClick={() => onChange(optionValue)}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -9,9 +9,11 @@ import {
   deleteBill,
   getBillById,
 } from "@/services/billingService";
+import { createPayment } from "@/services/paymentService";
 
-import Bill from "@/models/Bill";
 import { connectDB } from "@/lib/mongodb";
+import Bill from "@/models/Bill";
+import Payment from "@/models/Payment";
 
 export async function GET(
   request,
@@ -37,16 +39,65 @@ export async function PUT(
   { params }
 ) {
   return apiHandler(() =>
-    authenticated(async () => {
+    authenticated(async (user) => {
       await connectDB();
       const { id } = await params;
+      const updates = await getJsonBody(request);
+      const existingBill = await Bill.findById(id);
+
+      if (!existingBill) {
+        throw new Error("Bill not found");
+      }
+
+      const existingPayment =
+        updates.status === "PAID"
+          ? await Payment.findOne({
+            billId: id,
+            status: "SUCCESS",
+          })
+          : null;
+
+      if (updates.status === "PAID" && !existingPayment) {
+        const requestedPaidAmount = Number(
+          updates.paidAmount ?? existingBill.totalOutstanding
+        );
+        const wasPreviouslyMarkedPaid =
+          existingBill.status === "PAID" &&
+          Number(existingBill.paidAmount || 0) > 0;
+        const amount = wasPreviouslyMarkedPaid
+          ? Number(existingBill.paidAmount)
+          : Math.max(
+            requestedPaidAmount - Number(existingBill.paidAmount || 0),
+            0
+          );
+
+        if (amount <= 0) {
+          throw new Error(
+            "A payment amount is required to create the receipt"
+          );
+        }
+
+        await createPayment({
+          data: {
+            roomId: existingBill.roomId,
+            memberId: existingBill.memberId,
+            billId: existingBill._id,
+            amount,
+            paymentDate: updates.paymentDate || new Date(),
+            paymentMode: updates.paymentMode || "CASH",
+            remarks: updates.remarks || "Payment recorded from billing",
+          },
+          adminId: user.adminId,
+        });
+
+        return json(await getBillById(id));
+      }
 
       const bill =
         await Bill.findByIdAndUpdate(
           id,
           {
-            $set:
-              await getJsonBody(request),
+            $set: updates,
           },
           {
             new: true,

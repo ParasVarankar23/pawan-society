@@ -6,9 +6,27 @@ import {
 } from "@/app/api/_utils";
 
 import {
-  updateSocietyWork,
   deleteSocietyWork,
+  getSocietyWorkById,
+  updateSocietyWork,
 } from "@/services/societyWorkService";
+
+export async function GET(
+  request,
+  { params }
+) {
+  return apiHandler(() =>
+    authenticated(async () => {
+      const work = await getSocietyWorkById(params.id);
+
+      if (!work) {
+        throw new Error("Society work not found");
+      }
+
+      return json(work);
+    })
+  );
+}
 
 export async function PUT(
   request,

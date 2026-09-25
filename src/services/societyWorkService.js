@@ -1,5 +1,5 @@
-import SocietyWork from "@/models/SocietyWork";
 import { connectDB } from "@/lib/mongodb";
+import SocietyWork from "@/models/SocietyWork";
 
 export async function createSocietyWork({
   data,
@@ -21,6 +21,12 @@ export async function getSocietyWorks(
   return SocietyWork.find(filters)
     .sort({ startDate: -1 })
     .lean();
+}
+
+export async function getSocietyWorkById(id) {
+  await connectDB();
+
+  return SocietyWork.findById(id).lean();
 }
 
 export async function updateSocietyWork(

@@ -1,5 +1,5 @@
-import FinancialTransaction from "@/models/FinancialTransaction";
 import { connectDB } from "@/lib/mongodb";
+import FinancialTransaction from "@/models/FinancialTransaction";
 
 export async function getCashbook({
   startDate,
@@ -27,6 +27,8 @@ export async function getCashbook({
   }
 
   const transactions = await FinancialTransaction.find(query)
+    .populate("memberId", "name")
+    .populate("roomId", "roomNumber")
     .sort({
       transactionDate: 1,
       createdAt: 1,
@@ -48,13 +50,24 @@ export async function getCashbook({
 
     balance += income - expense;
 
+    const memberName = transaction.memberId?.name;
+    const description = memberName
+      ? `${transaction.description} - ${memberName}`
+      : transaction.description;
+
     return {
       srNo: index + 1,
       date: transaction.transactionDate,
-      particular: transaction.description,
+      description,
+      particular: description,
+      type: transaction.type,
+      amount: transaction.amount,
       income,
       expense,
       balance,
+      paymentMode: transaction.paymentMode,
+      memberId: transaction.memberId,
+      roomId: transaction.roomId,
       transactionId: transaction._id,
     };
   });

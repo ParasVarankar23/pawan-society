@@ -47,6 +47,12 @@ const ReceiptSchema = new mongoose.Schema(
       required: true,
     },
 
+    billingMonth: {
+      type: String,
+      default: "",
+      match: /^$|^\d{4}-\d{2}$/,
+    },
+
     billNumbers: [
       {
         type: Number,

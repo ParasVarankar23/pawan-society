@@ -20,8 +20,6 @@ import api from "@/lib/apiClient";
 
 const initialForm = {
   roomNumber: "",
-  wing: "",
-  floor: "",
   areaSqFt: "",
   occupancyStatus: "VACANT",
   parking: false,
@@ -73,6 +71,10 @@ function formatStatus(status) {
     );
 }
 
+function hasParking(room) {
+  return room.parking === true || room.parking === "true";
+}
+
 export default function RoomsPage() {
   const [rooms, setRooms] =
     useState([]);
@@ -107,8 +109,8 @@ export default function RoomsPage() {
     try {
       const query = searchValue
         ? `?search=${encodeURIComponent(
-            searchValue
-          )}`
+          searchValue
+        )}`
         : "";
 
       const result =
@@ -124,7 +126,7 @@ export default function RoomsPage() {
     } catch (err) {
       setError(
         err.message ||
-          "Unable to load rooms"
+        "Unable to load rooms"
       );
     } finally {
       setLoading(false);
@@ -152,17 +154,9 @@ export default function RoomsPage() {
       roomNumber:
         room.roomNumber || "",
 
-      wing: room.wing || "",
-
-      floor:
-        room.floor !== undefined &&
-        room.floor !== null
-          ? room.floor
-          : "",
-
       areaSqFt:
         room.areaSqFt !== undefined &&
-        room.areaSqFt !== null
+          room.areaSqFt !== null
           ? room.areaSqFt
           : "",
 
@@ -171,7 +165,7 @@ export default function RoomsPage() {
         "VACANT",
 
       parking:
-        Boolean(room.parking),
+        hasParking(room),
 
       parkingCount:
         room.parkingCount || 0,
@@ -212,14 +206,6 @@ export default function RoomsPage() {
         roomNumber:
           form.roomNumber.trim(),
 
-        wing:
-          form.wing.trim(),
-
-        floor:
-          form.floor === ""
-            ? undefined
-            : Number(form.floor),
-
         areaSqFt:
           form.areaSqFt === ""
             ? undefined
@@ -234,8 +220,8 @@ export default function RoomsPage() {
         parkingCount:
           form.parking
             ? Number(
-                form.parkingCount || 0
-              )
+              form.parkingCount || 0
+            )
             : 0,
       };
 
@@ -257,7 +243,7 @@ export default function RoomsPage() {
     } catch (err) {
       alert(
         err.message ||
-          "Unable to save room"
+        "Unable to save room"
       );
     } finally {
       setSaving(false);
@@ -281,7 +267,7 @@ export default function RoomsPage() {
     } catch (err) {
       alert(
         err.message ||
-          "Unable to delete room"
+        "Unable to delete room"
       );
     }
   }
@@ -385,20 +371,20 @@ export default function RoomsPage() {
                 className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
               />
               <input
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter"
-                ) {
-                  handleSearch();
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
+                  )
                 }
-              }}
-              placeholder="Search room number, wing or floor..."
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter"
+                  ) {
+                    handleSearch();
+                  }
+                }}
+                placeholder="Search room number, wing or floor..."
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
               />
             </div>
@@ -481,141 +467,125 @@ export default function RoomsPage() {
             </div>
           ) : (
             <>
-            <div className="space-y-3 bg-slate-50 p-4 md:hidden">
-              {rooms.map((room) => (
-                <RoomCard
-                  key={room._id}
-                  room={room}
-                  onEdit={openEditModal}
-                  onDelete={deleteRoom}
-                />
-              ))}
-            </div>
+              <div className="space-y-3 bg-slate-50 p-4 md:hidden">
+                {rooms.map((room) => (
+                  <RoomCard
+                    key={room._id}
+                    room={room}
+                    onEdit={openEditModal}
+                    onDelete={deleteRoom}
+                  />
+                ))}
+              </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[850px] text-sm">
-                <thead className="bg-slate-50/70">
-                  <tr>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Room
-                    </th>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[850px] text-sm">
+                  <thead className="bg-slate-50/70">
+                    <tr>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
+                        Room
+                      </th>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Wing
-                    </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
+                        Area
+                      </th>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Floor
-                    </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
+                        Member
+                      </th>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Area
-                    </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
+                        Status
+                      </th>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Member
-                    </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
+                        Parking
+                      </th>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Status
-                    </th>
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
 
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500">
-                      Parking
-                    </th>
+                  <tbody>
+                    {rooms.map(
+                      (room) => (
+                        <tr
+                          key={room._id}
+                          className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+                        >
+                          <td className="px-5 py-4 font-semibold text-slate-900">
+                            {room.roomNumber}
+                          </td>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
+                          <td className="px-5 py-4">
+                            {room.areaSqFt
+                              ? `${room.areaSqFt} sq.ft`
+                              : "-"}
+                          </td>
 
-                <tbody>
-                  {rooms.map(
-                    (room) => (
-                      <tr
-                        key={room._id}
-                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
-                      >
-                        <td className="px-5 py-4 font-semibold text-slate-900">
-                          {room.roomNumber}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {room.wing || "-"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {room.floor ?? "-"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {room.areaSqFt
-                            ? `${room.areaSqFt} sq.ft`
-                            : "-"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {room.memberId
-                            ?.name ||
-                            room.member
+                          <td className="px-5 py-4">
+                            {room.memberId
                               ?.name ||
-                            "Not assigned"}
-                        </td>
+                              room.member
+                                ?.name ||
+                              "Not assigned"}
+                          </td>
 
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
-                              room.occupancyStatus
-                            )}`}
-                          >
-                            {formatStatus(
-                              room.occupancyStatus
-                            )}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {room.parking
-                            ? `${room.parkingCount || 0} slot(s)`
-                            : "No"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditModal(
-                                  room
-                                )
-                              }
-                              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-950"
+                          <td className="px-5 py-4">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
+                                room.occupancyStatus
+                              )}`}
                             >
-                              <Edit3 size={14} />
-                              Edit
-                            </button>
+                              {formatStatus(
+                                room.occupancyStatus
+                              )}
+                            </span>
+                          </td>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteRoom(
-                                  room
-                                )
-                              }
-                              className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 size={14} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          <td className="px-5 py-4">
+                            {hasParking(room)
+                              ? `${room.parkingCount || 0} slot(s)`
+                              : "No"}
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openEditModal(
+                                    room
+                                  )
+                                }
+                                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-950"
+                              >
+                                <Edit3 size={14} />
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteRoom(
+                                    room
+                                  )
+                                }
+                                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 size={14} />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>
@@ -670,46 +640,6 @@ export default function RoomsPage() {
                     }
                     placeholder="Example: A-101"
                     required
-                  />
-                </div>
-
-                {/* Wing */}
-                <div>
-                  <label className="label">
-                    Wing
-                  </label>
-
-                  <input
-                    className="input"
-                    value={form.wing}
-                    onChange={(event) =>
-                      updateField(
-                        "wing",
-                        event.target.value
-                      )
-                    }
-                    placeholder="Example: A"
-                  />
-                </div>
-
-                {/* Floor */}
-                <div>
-                  <label className="label">
-                    Floor
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    className="input"
-                    value={form.floor}
-                    onChange={(event) =>
-                      updateField(
-                        "floor",
-                        event.target.value
-                      )
-                    }
-                    placeholder="Example: 1"
                   />
                 </div>
 
@@ -789,7 +719,7 @@ export default function RoomsPage() {
                       updateField(
                         "parking",
                         event.target.value ===
-                          "YES"
+                        "YES"
                       )
                     }
                   >
@@ -848,8 +778,8 @@ export default function RoomsPage() {
                   {saving
                     ? "Saving..."
                     : editingRoom
-                    ? "Update Room"
-                    : "Save Room"}
+                      ? "Update Room"
+                      : "Save Room"}
                 </button>
               </div>
             </form>
@@ -908,7 +838,7 @@ function RoomCard({ room, onEdit, onDelete }) {
               Room {room.roomNumber}
             </p>
             <p className="mt-0.5 text-xs text-slate-400">
-              {room.wing ? `Wing ${room.wing}` : "No wing assigned"}
+              Room information
             </p>
           </div>
         </div>
@@ -933,7 +863,7 @@ function RoomCard({ room, onEdit, onDelete }) {
 
       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
         <CarFront size={15} />
-        {room.parking ? `${room.parkingCount || 0} parking slot(s)` : "No parking"}
+        {hasParking(room) ? `${room.parkingCount || 0} parking slot(s)` : "No parking"}
       </div>
 
       <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">

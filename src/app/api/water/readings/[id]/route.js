@@ -6,6 +6,7 @@ import {
 } from "@/app/api/_utils";
 
 import {
+  deleteReading,
   updateReading,
 } from "@/services/waterService";
 
@@ -15,12 +16,27 @@ export async function PUT(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
+
       return json(
         await updateReading(
-          params.id,
+          id,
           await getJsonBody(request)
         )
       );
+    })
+  );
+}
+
+export async function DELETE(
+  request,
+  { params }
+) {
+  return apiHandler(() =>
+    authenticated(async () => {
+      const { id } = await params;
+
+      return json(await deleteReading(id));
     })
   );
 }

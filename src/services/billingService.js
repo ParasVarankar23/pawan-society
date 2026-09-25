@@ -1,13 +1,22 @@
 import Bill from "@/models/Bill";
-import Room from "@/models/Room";
-import Member from "@/models/Member";
 import ChargeMaster from "@/models/ChargeMaster";
+import Member from "@/models/Member";
+import Room from "@/models/Room";
 import WaterReading from "@/models/WaterReading";
 
-import { connectDB } from "@/lib/mongodb";
 import { calculateMonthlyBill } from "@/lib/calculations/billing";
-import { getActivePenaltyRule } from "@/services/penaltyService";
+import { connectDB } from "@/lib/mongodb";
 import { generateBillNumber } from "@/lib/numbering/billNumber";
+import { sendBill } from "@/services/emailService";
+import { getActivePenaltyRule } from "@/services/penaltyService";
+
+function defaultDueDate(billingMonth) {
+  const billingDate = new Date(`${billingMonth}-01T00:00:00`);
+  billingDate.setMonth(billingDate.getMonth() + 1);
+  billingDate.setDate(15);
+
+  return billingDate;
+}
 
 export async function calculateBill({
   roomId,
@@ -21,13 +30,13 @@ export async function calculateBill({
     throw new Error("Room not found");
   }
 
-  const member = await Member.findOne({
-    roomId,
-    status: "ACTIVE",
-  }).lean();
-
   const charges = await ChargeMaster.findOne({
     status: "ACTIVE",
+    effectiveFrom: { $lte: new Date() },
+    $or: [
+      { effectiveTo: null },
+      { effectiveTo: { $gte: new Date() } },
+    ],
   })
     .sort({ effectiveFrom: -1 })
     .lean();
@@ -40,6 +49,35 @@ export async function calculateBill({
     roomId,
     billingMonth,
   }).lean();
+
+  if (!water) {
+    throw new Error(
+      `Water reading is required for room ${room.roomNumber} and billing month ${billingMonth}`
+    );
+  }
+
+  console.log("[billing] source values", {
+    roomId: String(roomId),
+    roomNumber: room.roomNumber,
+    billingMonth,
+    charges: {
+      maintenance: charges.maintenance,
+      sinkingFund: charges.sinkingFund,
+      insurance: charges.insurance,
+      educationFund: charges.educationFund,
+      parking: charges.parking,
+      nonOccupancy: charges.nonOccupancy,
+      rentNoc: charges.rentNoc,
+      other: charges.other,
+      waterRatePerUnit: charges.waterRatePerUnit,
+    },
+    water: {
+      currentReading: water.currentReading,
+      units: water.units,
+      ratePerUnit: water.ratePerUnit,
+      amount: water.amount,
+    },
+  });
 
   const previousBills = await Bill.find({
     roomId,
@@ -58,13 +96,24 @@ export async function calculateBill({
 
   const penaltyRule = await getActivePenaltyRule();
 
-  return calculateMonthlyBill({
+  const calculation = calculateMonthlyBill({
     charges,
     water,
     previousOutstanding,
     penaltyRule,
     billingMonth,
   });
+
+  console.log("[billing] calculated values", {
+    billingMonth,
+    currentCharges: calculation.currentCharges,
+    previousOutstanding: calculation.previousOutstanding,
+    penalty: calculation.penalty,
+    totalOutstanding: calculation.totalOutstanding,
+    balanceAmount: calculation.balanceAmount,
+  });
+
+  return calculation;
 }
 
 export async function generateBill({
@@ -107,13 +156,13 @@ export async function generateBill({
 
   const billNumber = await generateBillNumber();
 
-  return Bill.create({
+  const bill = await Bill.create({
     billNumber,
     roomId,
     memberId: member._id,
     billingMonth,
     billDate: new Date(),
-    dueDate,
+    dueDate: dueDate || defaultDueDate(billingMonth),
 
     previousOutstanding:
       calculation.previousOutstanding,
@@ -137,6 +186,46 @@ export async function generateBill({
 
     status: "GENERATED",
   });
+
+  let emailStatus = "SKIPPED";
+
+  if (member.email) {
+    try {
+      console.log("[billing] email values", {
+        billNumber,
+        recipientConfigured: Boolean(member.email),
+        billingMonth,
+        currentCharges: calculation.currentCharges,
+        totalOutstanding: calculation.totalOutstanding,
+        balanceAmount: calculation.balanceAmount,
+      });
+
+      await sendBill({
+        bill: {
+          ...bill.toObject(),
+          roomId: room,
+          memberId: member,
+          currentCharges: calculation.currentCharges,
+          penalty: calculation.penalty,
+          totalOutstanding: calculation.totalOutstanding,
+          balanceAmount: calculation.balanceAmount,
+        },
+        recipient: member.email,
+      });
+      emailStatus = "SENT";
+    } catch (error) {
+      console.error(
+        `Bill email failed for bill ${bill.billNumber}:`,
+        error
+      );
+      emailStatus = "FAILED";
+    }
+  }
+
+  return {
+    ...bill.toObject(),
+    emailStatus,
+  };
 }
 
 export async function getBills(filters = {}) {

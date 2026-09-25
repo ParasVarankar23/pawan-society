@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ArrowLeft, Building2, Edit3, Mail, MapPin, Phone, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
-import { ArrowLeft, Building2, Mail, MapPin, Phone, Trash2, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
@@ -109,15 +109,25 @@ export default function MemberDetailsPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:w-auto"
-              >
-                <Trash2 size={17} />
-                {deleting ? "Deleting..." : "Delete Member"}
-              </button>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Link
+                  href={`/members/${id}/edit`}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 sm:flex-none"
+                >
+                  <Edit3 size={17} />
+                  Edit Member
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:flex-none"
+                >
+                  <Trash2 size={17} />
+                  {deleting ? "Deleting..." : "Delete Member"}
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

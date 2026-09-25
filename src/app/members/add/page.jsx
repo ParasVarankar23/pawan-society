@@ -4,6 +4,7 @@ import {
   Fragment,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -11,8 +12,8 @@ import {
   useRouter,
 } from "next/navigation";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -183,9 +184,10 @@ function FormSection({
   title,
   description,
   children,
+  className = "",
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section className={`relative overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
 
       <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
 
@@ -219,6 +221,7 @@ export default function AddMemberPage({
   embedded = false,
   onClose,
   onSaved,
+  memberId = null,
 }) {
   const router = useRouter();
   const PageWrapper = embedded
@@ -240,6 +243,28 @@ export default function AddMemberPage({
   const [error, setError] =
     useState("");
 
+  const [roomSearch, setRoomSearch] =
+    useState("");
+
+  const [memberTypeSearch, setMemberTypeSearch] =
+    useState("");
+
+  const [memberTypeOpen, setMemberTypeOpen] =
+    useState(false);
+
+  const [occupancySearch, setOccupancySearch] =
+    useState("");
+
+  const [occupancyOpen, setOccupancyOpen] =
+    useState(false);
+
+  const [roomPickerOpen, setRoomPickerOpen] =
+    useState(false);
+
+  const roomPickerRef = useRef(null);
+
+  const editing = Boolean(memberId);
+
   /* =======================================================
      LOAD ROOMS
   ======================================================= */
@@ -254,16 +279,55 @@ export default function AddMemberPage({
             "/rooms?status=ACTIVE"
           );
 
+        let currentMember = null;
+
+        if (memberId) {
+          const memberResult =
+            await api.get(
+              `/members/${memberId}`
+            );
+
+          currentMember = memberResult.data;
+        }
+
         const list =
           Array.isArray(result.data)
             ? result.data
             : result.data?.rooms || [];
 
-        setRooms(list);
+        const currentRoomId =
+          currentMember?.roomId?._id ||
+          currentMember?.roomId ||
+          "";
+
+        setRooms(
+          list
+            .sort(
+              (firstRoom, secondRoom) =>
+                Number(firstRoom.roomNumber) -
+                Number(secondRoom.roomNumber)
+            )
+        );
+
+        if (currentMember) {
+          setForm({
+            roomId: currentRoomId,
+            name: currentMember.name || "",
+            mobile: currentMember.mobile || "",
+            alternateMobile:
+              currentMember.alternateMobile || "",
+            email: currentMember.email || "",
+            memberType:
+              currentMember.memberType || "OWNER",
+            occupancyType:
+              currentMember.occupancyType || "SELF",
+            address: currentMember.address || "",
+          });
+        }
       } catch (err) {
         setError(
           err.message ||
-            "Unable to load rooms."
+          "Unable to load rooms."
         );
       } finally {
         setLoadingRooms(false);
@@ -271,6 +335,29 @@ export default function AddMemberPage({
     }
 
     loadRooms();
+  }, [memberId]);
+
+  useEffect(() => {
+    function closeRoomPicker(event) {
+      if (
+        roomPickerRef.current &&
+        !roomPickerRef.current.contains(event.target)
+      ) {
+        setRoomPickerOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      closeRoomPicker
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        closeRoomPicker
+      );
+    };
   }, []);
 
   /* =======================================================
@@ -297,6 +384,23 @@ export default function AddMemberPage({
         room._id === form.roomId
     );
   }, [rooms, form.roomId]);
+
+  const filteredRooms = rooms.filter((room) => {
+    const query = roomSearch.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return (
+      String(room.roomNumber).toLowerCase().includes(query) ||
+      room.memberId?.name?.toLowerCase().includes(query)
+    );
+  });
+
+  let selectedRoomLabel = "Select Room";
+
+  if (selectedRoom) {
+    selectedRoomLabel = `Room ${selectedRoom.roomNumber}`;
+  }
 
   /* =======================================================
      VALIDATION
@@ -376,10 +480,17 @@ export default function AddMemberPage({
           form.address.trim(),
       };
 
-      await api.post(
-        "/members",
-        payload
-      );
+      if (editing) {
+        await api.put(
+          `/members/${memberId}`,
+          payload
+        );
+      } else {
+        await api.post(
+          "/members",
+          payload
+        );
+      }
 
       if (onSaved) {
         onSaved();
@@ -389,7 +500,7 @@ export default function AddMemberPage({
     } catch (err) {
       setError(
         err.message ||
-          "Unable to save member."
+        "Unable to save member."
       );
     } finally {
       setSaving(false);
@@ -431,12 +542,13 @@ export default function AddMemberPage({
             </p>
 
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              Add Member
+              {editing ? "Edit Member" : "Add Member"}
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Register a new member and assign a
-              society room.
+              {editing
+                ? "Update member details and room assignment."
+                : "Register a new member and assign a society room."}
             </p>
           </div>
         </div>
@@ -475,6 +587,7 @@ export default function AddMemberPage({
             icon={<HomeIcon />}
             title="Room Assignment"
             description="Select the society room associated with this member."
+            className="z-20"
           >
             <div className="grid gap-5 md:grid-cols-2">
 
@@ -486,54 +599,70 @@ export default function AddMemberPage({
                   Room *
                 </label>
 
-                <div className="relative">
-
-                  <select
+                <div
+                  ref={roomPickerRef}
+                  className="relative"
+                >
+                  <button
                     id="roomId"
-                    value={form.roomId}
-                    onChange={(event) =>
-                      updateField(
-                        "roomId",
-                        event.target.value
-                      )
-                    }
-                    required
-                    disabled={
-                      loadingRooms
-                    }
-                    className="input appearance-none pr-10"
+                    type="button"
+                    className="input flex w-full items-center justify-between text-left disabled:opacity-50"
+                    onClick={() => setRoomPickerOpen((open) => !open)}
+                    disabled={loadingRooms}
+                    aria-haspopup="listbox"
+                    aria-expanded={roomPickerOpen}
                   >
-                    <option value="">
+                    <span className={selectedRoom ? "text-slate-800" : "text-slate-400"}>
                       {loadingRooms
                         ? "Loading rooms..."
-                        : "Select Room"}
-                    </option>
-
-                    {rooms.map(
-                      (room) => (
-                        <option
-                          key={
-                            room._id
-                          }
-                          value={
-                            room._id
-                          }
-                        >
-                          Room{" "}
-                          {
-                            room.roomNumber
-                          }
-                          {room.wing
-                            ? ` · Wing ${room.wing}`
-                            : ""}
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        : selectedRoomLabel}
+                    </span>
                     <ChevronDownIcon />
-                  </div>
+                  </button>
+
+                  {roomPickerOpen && !loadingRooms && (
+                    <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <input
+                        type="search"
+                        value={roomSearch}
+                        onChange={(event) => setRoomSearch(event.target.value)}
+                        placeholder="Search room or member..."
+                        className="input mb-2 h-10 w-full"
+                      />
+
+                      <div
+                        className="max-h-32 overflow-y-auto overscroll-contain"
+                        role="listbox"
+                        aria-label="Rooms"
+                      >
+                        {filteredRooms.map((room) => {
+                          const isCurrentRoom = room._id === form.roomId;
+                          const isOccupied = Boolean(room.memberId) && !isCurrentRoom;
+
+                          return (
+                            <button
+                              key={room._id}
+                              type="button"
+                              role="option"
+                              aria-selected={isCurrentRoom}
+                              disabled={isOccupied}
+                              onClick={() => {
+                                updateField("roomId", room._id);
+                                setRoomPickerOpen(false);
+                                setRoomSearch("");
+                              }}
+                              className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${isOccupied ? "cursor-not-allowed text-slate-300" : "text-slate-700 hover:bg-slate-100"} ${isCurrentRoom ? "bg-slate-100 font-semibold text-slate-950" : ""}`}
+                            >
+                              Room {room.roomNumber}
+                              {room.memberId?.name
+                                ? ` · ${room.memberId.name} (Occupied)`
+                                : " · Available"}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {rooms.length === 0 &&
@@ -568,13 +697,7 @@ export default function AddMemberPage({
                       </p>
 
                       <p className="text-xs text-slate-500">
-                        {selectedRoom.wing
-                          ? `Wing ${selectedRoom.wing}`
-                          : "No wing"}
-                        {" · "}
-                        Floor{" "}
-                        {selectedRoom.floor ??
-                          "-"}
+                        Available room
                       </p>
                     </div>
                   </div>
@@ -629,37 +752,16 @@ export default function AddMemberPage({
                   Member Type
                 </label>
 
-                <div className="relative">
-                  <select
-                    id="memberType"
-                    className="input appearance-none pr-10"
-                    value={
-                      form.memberType
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "memberType",
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="OWNER">
-                      Owner
-                    </option>
-
-                    <option value="TENANT">
-                      Tenant
-                    </option>
-
-                    <option value="OTHER">
-                      Other
-                    </option>
-                  </select>
-
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <ChevronDownIcon />
-                  </div>
-                </div>
+                <SearchableMemberOption
+                  value={form.memberType}
+                  options={[["OWNER", "Owner"], ["TENANT", "Tenant"], ["OTHER", "Other"]]}
+                  search={memberTypeSearch}
+                  open={memberTypeOpen}
+                  setSearch={setMemberTypeSearch}
+                  setOpen={setMemberTypeOpen}
+                  onChange={(value) => updateField("memberType", value)}
+                  placeholder="Search member type..."
+                />
               </div>
 
               <div>
@@ -670,37 +772,16 @@ export default function AddMemberPage({
                   Occupancy Type
                 </label>
 
-                <div className="relative">
-                  <select
-                    id="occupancyType"
-                    className="input appearance-none pr-10"
-                    value={
-                      form.occupancyType
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "occupancyType",
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="SELF">
-                      Self Occupied
-                    </option>
-
-                    <option value="RENTED">
-                      Rented
-                    </option>
-
-                    <option value="VACANT">
-                      Vacant
-                    </option>
-                  </select>
-
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <ChevronDownIcon />
-                  </div>
-                </div>
+                <SearchableMemberOption
+                  value={form.occupancyType}
+                  options={[["SELF", "Self Occupied"], ["RENTED", "Rented"], ["VACANT", "Vacant"]]}
+                  search={occupancySearch}
+                  open={occupancyOpen}
+                  setSearch={setOccupancySearch}
+                  setOpen={setOccupancyOpen}
+                  onChange={(value) => updateField("occupancyType", value)}
+                  placeholder="Search occupancy type..."
+                />
               </div>
             </div>
           </FormSection>
@@ -877,12 +958,16 @@ export default function AddMemberPage({
               {saving ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Saving Member...
+                  {editing
+                    ? "Updating Member..."
+                    : "Saving Member..."}
                 </>
               ) : (
                 <>
                   <CheckIcon />
-                  Save Member
+                  {editing
+                    ? "Update Member"
+                    : "Save Member"}
                 </>
               )}
             </button>
@@ -891,5 +976,65 @@ export default function AddMemberPage({
         </form>
       </div>
     </PageWrapper>
+  );
+}
+
+function SearchableMemberOption({
+  value,
+  options,
+  search,
+  open,
+  setSearch,
+  setOpen,
+  onChange,
+  placeholder,
+}) {
+  const selectedLabel =
+    options.find(([optionValue]) => optionValue === value)?.[1] ||
+    "Select option";
+  const filteredOptions = options.filter(([, label]) =>
+    label.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className="input flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <span className="text-slate-800">{selectedLabel}</span>
+        <ChevronDownIcon />
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          <input
+            className="input"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={placeholder}
+            aria-label={placeholder}
+          />
+          <div className="mt-2 max-h-40 overflow-y-auto">
+            {filteredOptions.map(([optionValue, label]) => (
+              <button
+                key={optionValue}
+                type="button"
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${value === optionValue ? "bg-slate-50 font-semibold" : "text-slate-700"}`}
+                onClick={() => {
+                  onChange(optionValue);
+                  setSearch("");
+                  setOpen(false);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -14,7 +14,9 @@ import {
 export async function GET(request, { params }) {
   return apiHandler(() =>
     authenticated(async () => {
-      return json(await getRoomById(params.id));
+      const { id } = await params;
+
+      return json(await getRoomById(id));
     })
   );
 }
@@ -22,9 +24,11 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
+
       return json(
         await updateRoom(
-          params.id,
+          id,
           await getJsonBody(request)
         )
       );
@@ -35,7 +39,9 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   return apiHandler(() =>
     authenticated(async () => {
-      return json(await deleteRoom(params.id));
+      const { id } = await params;
+
+      return json(await deleteRoom(id));
     })
   );
 }

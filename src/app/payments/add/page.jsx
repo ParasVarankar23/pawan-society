@@ -10,8 +10,8 @@ import {
   useRouter,
 } from "next/navigation";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -265,7 +265,7 @@ export default function AddPaymentPage() {
       } catch (err) {
         setError(
           err.message ||
-            "Unable to load rooms."
+          "Unable to load rooms."
         );
       } finally {
         setLoading(false);
@@ -301,7 +301,7 @@ export default function AddPaymentPage() {
       } catch (err) {
         setError(
           err.message ||
-            "Unable to load outstanding bills."
+          "Unable to load outstanding bills."
         );
       }
     }
@@ -346,8 +346,8 @@ export default function AddPaymentPage() {
 
   const billOutstanding = Number(
     selectedBill?.balanceAmount ??
-      selectedBill?.totalOutstanding ??
-      0
+    selectedBill?.totalOutstanding ??
+    0
   );
 
   const enteredAmount =
@@ -398,8 +398,8 @@ export default function AddPaymentPage() {
           bill?.balanceAmount !==
             undefined
             ? String(
-                bill.balanceAmount
-              )
+              bill.balanceAmount
+            )
             : "",
       }));
     }
@@ -438,7 +438,7 @@ export default function AddPaymentPage() {
     if (
       selectedBill &&
       Number(form.amount) >
-        billOutstanding
+      billOutstanding
     ) {
       setError(
         "Payment amount cannot be greater than the selected bill balance."
@@ -480,7 +480,7 @@ export default function AddPaymentPage() {
     } catch (err) {
       setError(
         err.message ||
-          "Unable to record payment."
+        "Unable to record payment."
       );
     } finally {
       setSaving(false);
@@ -644,7 +644,7 @@ export default function AddPaymentPage() {
                           Balance{" "}
                           {money(
                             bill.balanceAmount ??
-                              bill.totalOutstanding
+                            bill.totalOutstanding
                           )}
                         </option>
                       )
@@ -801,6 +801,18 @@ export default function AddPaymentPage() {
                       UPI
                     </option>
 
+                    <option value="GPAY">
+                      Google Pay
+                    </option>
+
+                    <option value="PHONEPE">
+                      PhonePe
+                    </option>
+
+                    <option value="PAYTM">
+                      Paytm
+                    </option>
+
                     <option value="BANK_TRANSFER">
                       Bank Transfer
                     </option>
@@ -860,50 +872,50 @@ export default function AddPaymentPage() {
 
             {form.paymentMode ===
               "CHEQUE" && (
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
 
-                <div>
-                  <label className="label">
-                    Cheque Number
-                  </label>
+                  <div>
+                    <label className="label">
+                      Cheque Number
+                    </label>
 
-                  <input
-                    className="input"
-                    value={
-                      form.chequeNumber
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "chequeNumber",
-                        event.target.value
-                      )
-                    }
-                    placeholder="Cheque number"
-                  />
+                    <input
+                      className="input"
+                      value={
+                        form.chequeNumber
+                      }
+                      onChange={(event) =>
+                        updateField(
+                          "chequeNumber",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Cheque number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      Bank Name
+                    </label>
+
+                    <input
+                      className="input"
+                      value={
+                        form.bankName
+                      }
+                      onChange={(event) =>
+                        updateField(
+                          "bankName",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Bank name"
+                    />
+                  </div>
+
                 </div>
-
-                <div>
-                  <label className="label">
-                    Bank Name
-                  </label>
-
-                  <input
-                    className="input"
-                    value={
-                      form.bankName
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "bankName",
-                        event.target.value
-                      )
-                    }
-                    placeholder="Bank name"
-                  />
-                </div>
-
-              </div>
-            )}
+              )}
 
           </FormSection>
 

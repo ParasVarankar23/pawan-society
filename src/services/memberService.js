@@ -1,6 +1,6 @@
+import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import Room from "@/models/Room";
-import { connectDB } from "@/lib/mongodb";
 
 export async function createMember(data) {
   await connectDB();
@@ -46,10 +46,28 @@ export async function getMembers(search = "") {
     ];
   }
 
-  return Member.find(query)
+  const members = await Member.find(query)
     .populate("roomId")
-    .sort({ name: 1 })
     .lean();
+
+  return members.sort((firstMember, secondMember) => {
+    const firstRoomNumber = Number(
+      firstMember.roomId?.roomNumber
+    );
+    const secondRoomNumber = Number(
+      secondMember.roomId?.roomNumber
+    );
+
+    if (Number.isNaN(firstRoomNumber)) {
+      return Number.isNaN(secondRoomNumber) ? 0 : 1;
+    }
+
+    if (Number.isNaN(secondRoomNumber)) {
+      return -1;
+    }
+
+    return firstRoomNumber - secondRoomNumber;
+  });
 }
 
 export async function getMemberById(id) {
@@ -63,13 +81,33 @@ export async function getMemberById(id) {
 export async function updateMember(id, data) {
   await connectDB();
 
+  const member = await Member.findById(id);
+
+  if (!member) {
+    throw new Error("Member not found");
+  }
+
+  const oldRoomId = member.roomId?.toString();
+  const newRoomId = data.roomId?.toString();
+
+  if (oldRoomId !== newRoomId) {
+    await Room.findByIdAndUpdate(oldRoomId, {
+      $unset: { memberId: 1 },
+      $set: { occupancyStatus: "VACANT" },
+    });
+
+    await Room.findByIdAndUpdate(newRoomId, {
+      $set: {
+        memberId: member._id,
+        occupancyStatus: "OCCUPIED",
+      },
+    });
+  }
+
   return Member.findByIdAndUpdate(
     id,
     { $set: data },
-    {
-      new: true,
-      runValidators: true,
-    }
+    { new: true, runValidators: true }
   );
 }
 

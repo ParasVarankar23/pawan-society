@@ -3,13 +3,14 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import Link from "next/link";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -218,6 +219,23 @@ function statusLabel(status) {
     );
 }
 
+function getPaymentSummary(bill) {
+  const total = Number(bill.totalOutstanding || 0);
+  const storedPaid = Number(bill.paidAmount || 0);
+
+  if (bill.status === "PAID") {
+    return { total, paid: total, balance: 0 };
+  }
+
+  return {
+    total,
+    paid: storedPaid,
+    balance: Number(
+      bill.balanceAmount ?? total - storedPaid
+    ),
+  };
+}
+
 /* =========================================================
    STAT CARD
 ========================================================= */
@@ -279,24 +297,15 @@ function StatCard({
    MOBILE BILL CARD
 ========================================================= */
 
-function BillCard({ bill }) {
+function BillCard({ bill, onEdit, onDelete }) {
   const room =
     bill.roomId?.roomNumber || "-";
 
   const member =
     bill.memberId?.name || "-";
 
-  const total =
-    Number(bill.totalOutstanding || 0);
-
-  const paid =
-    Number(bill.paidAmount || 0);
-
-  const balance =
-    Number(
-      bill.balanceAmount ??
-        total - paid
-    );
+  const { total, paid, balance } =
+    getPaymentSummary(bill);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -395,11 +404,10 @@ function BillCard({ bill }) {
           </p>
 
           <p
-            className={`text-sm font-bold ${
-              balance > 0
-                ? "text-red-600"
-                : "text-emerald-600"
-            }`}
+            className={`text-sm font-bold ${balance > 0
+              ? "text-red-600"
+              : "text-emerald-600"
+              }`}
           >
             {money(balance)}
           </p>
@@ -413,6 +421,23 @@ function BillCard({ bill }) {
         <EyeIcon />
         View Bill
       </Link>
+
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onEdit(bill)}
+          className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(bill)}
+          className="flex-1 rounded-xl border border-red-200 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -440,6 +465,24 @@ export default function BillingPage() {
   const [error, setError] =
     useState("");
 
+  const [editingBill, setEditingBill] =
+    useState(null);
+
+  const [editDueDate, setEditDueDate] =
+    useState("");
+
+  const [editStatus, setEditStatus] =
+    useState("GENERATED");
+
+  const [editPaymentMode, setEditPaymentMode] =
+    useState("CASH");
+
+  const [editRemarks, setEditRemarks] =
+    useState("");
+
+  const [savingEdit, setSavingEdit] =
+    useState(false);
+
   async function loadBills() {
     setLoading(true);
     setError("");
@@ -459,7 +502,7 @@ export default function BillingPage() {
     } catch (err) {
       setError(
         err.message ||
-          "Unable to load bills."
+        "Unable to load bills."
       );
     } finally {
       setLoading(false);
@@ -469,6 +512,71 @@ export default function BillingPage() {
   useEffect(() => {
     loadBills();
   }, [month]);
+
+  function openEditBill(bill) {
+    setEditingBill(bill);
+    setEditDueDate(
+      bill.dueDate
+        ? new Date(bill.dueDate).toISOString().slice(0, 10)
+        : ""
+    );
+    setEditStatus(bill.status || "GENERATED");
+    setEditPaymentMode(bill.paymentMode || "CASH");
+    setEditRemarks(bill.remarks || "");
+  }
+
+  async function saveBillEdit(event) {
+    event.preventDefault();
+    setSavingEdit(true);
+
+    try {
+      const total = getPaymentSummary(editingBill).total;
+      let paymentFields = {};
+
+      if (editStatus === "PAID") {
+        paymentFields = { paidAmount: total, balanceAmount: 0 };
+      }
+
+      if (
+        editStatus === "UNPAID" ||
+        editStatus === "GENERATED" ||
+        editStatus === "OVERDUE"
+      ) {
+        paymentFields = {
+          paidAmount: 0,
+          balanceAmount: total,
+        };
+      }
+
+      await api.put(`/billing/${editingBill._id}`, {
+        dueDate: editDueDate,
+        status: editStatus,
+        paymentMode: editPaymentMode,
+        remarks: editRemarks.trim(),
+        ...paymentFields,
+      });
+
+      setEditingBill(null);
+      await loadBills();
+    } catch (err) {
+      setError(err.message || "Unable to update bill.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteBill(bill) {
+    if (!window.confirm(`Delete bill #${bill.billNumber || "-"}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/billing/${bill._id}`);
+      await loadBills();
+    } catch (err) {
+      setError(err.message || "Unable to delete bill.");
+    }
+  }
 
   /* =======================================================
      FILTER
@@ -536,21 +644,8 @@ export default function BillingPage() {
     let totalOutstanding = 0;
 
     bills.forEach((bill) => {
-      const total =
-        Number(
-          bill.totalOutstanding || 0
-        );
-
-      const paid =
-        Number(
-          bill.paidAmount || 0
-        );
-
-      const balance =
-        Number(
-          bill.balanceAmount ??
-            total - paid
-        );
+      const { total, paid, balance } =
+        getPaymentSummary(bill);
 
       totalBilled += total;
       totalPaid += paid;
@@ -732,16 +827,15 @@ export default function BillingPage() {
               <div
                 className="h-full rounded-full bg-slate-900"
                 style={{
-                  width: `${
-                    summary.totalBilled
-                      ? Math.min(
-                          (summary.totalPaid /
-                            summary.totalBilled) *
-                            100,
-                          100
-                        )
-                      : 0
-                  }%`,
+                  width: `${summary.totalBilled
+                    ? Math.min(
+                      (summary.totalPaid /
+                        summary.totalBilled) *
+                      100,
+                      100
+                    )
+                    : 0
+                    }%`,
                 }}
               />
             </div>
@@ -929,6 +1023,8 @@ export default function BillingPage() {
                     <BillCard
                       key={bill._id}
                       bill={bill}
+                      onEdit={openEditBill}
+                      onDelete={deleteBill}
                     />
                   )
                 )}
@@ -992,24 +1088,8 @@ export default function BillingPage() {
                     {filteredBills.map(
                       (bill) => {
 
-                        const total =
-                          Number(
-                            bill.totalOutstanding ||
-                              0
-                          );
-
-                        const paid =
-                          Number(
-                            bill.paidAmount ||
-                              0
-                          );
-
-                        const balance =
-                          Number(
-                            bill.balanceAmount ??
-                              total -
-                                paid
-                          );
+                        const { total, paid, balance } =
+                          getPaymentSummary(bill);
 
                         return (
                           <tr
@@ -1089,12 +1169,11 @@ export default function BillingPage() {
                             <td className="px-5 py-4 text-right">
 
                               <span
-                                className={`font-bold ${
-                                  balance >
+                                className={`font-bold ${balance >
                                   0
-                                    ? "text-red-600"
-                                    : "text-emerald-600"
-                                }`}
+                                  ? "text-red-600"
+                                  : "text-emerald-600"
+                                  }`}
                               >
                                 {money(
                                   balance
@@ -1127,6 +1206,22 @@ export default function BillingPage() {
                                 View
                               </Link>
 
+                              <button
+                                type="button"
+                                onClick={() => openEditBill(bill)}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteBill(bill)}
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+
                             </td>
 
                           </tr>
@@ -1142,6 +1237,197 @@ export default function BillingPage() {
           )}
         </div>
       </div>
+
+      {editingBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <form
+            onSubmit={saveBillEdit}
+            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">
+                Edit Bill #{editingBill.billNumber || "-"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Room {editingBill.roomId?.roomNumber || "-"}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="paymentEditDueDate" className="label">
+                Due date
+              </label>
+              <input
+                id="paymentEditDueDate"
+                className="input"
+                type="date"
+                value={editDueDate}
+                onChange={(event) => setEditDueDate(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="paymentEditStatus" className="label">
+                Status
+              </label>
+              <SearchableSelect
+                id="paymentEditStatus"
+                value={editStatus}
+                onChange={setEditStatus}
+                placeholder="Select status"
+                options={[
+                  { value: "GENERATED", label: "Generated" },
+                  { value: "UNPAID", label: "Unpaid" },
+                  { value: "PARTIAL", label: "Partial" },
+                  { value: "PAID", label: "Paid" },
+                  { value: "OVERDUE", label: "Overdue" },
+                  { value: "CANCELLED", label: "Cancelled" },
+                ]}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="paymentEditMode" className="label">
+                Payment type
+              </label>
+              <SearchableSelect
+                id="paymentEditMode"
+                value={editPaymentMode}
+                onChange={setEditPaymentMode}
+                placeholder="Select payment type"
+                options={[
+                  { value: "CASH", label: "Cash" },
+                  { value: "UPI", label: "UPI" },
+                  { value: "GPAY", label: "Google Pay" },
+                  { value: "PHONEPE", label: "PhonePe" },
+                  { value: "PAYTM", label: "Paytm" },
+                  { value: "CHEQUE", label: "Cheque" },
+                  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+                  { value: "NEFT", label: "NEFT" },
+                  { value: "RTGS", label: "RTGS" },
+                  { value: "IMPS", label: "IMPS" },
+                  { value: "OTHER", label: "Other" },
+                ]}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="paymentEditRemarks" className="label">
+                Remarks
+              </label>
+              <textarea
+                id="paymentEditRemarks"
+                className="input min-h-24 resize-y py-3"
+                value={editRemarks}
+                onChange={(event) => setEditRemarks(event.target.value)}
+                placeholder="Payment remarks..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingBill(null)}
+                disabled={savingEdit}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingEdit}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingEdit ? "Updating..." : "Update Bill"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </AppShell>
+  );
+}
+
+function SearchableSelect({
+  id,
+  value,
+  options,
+  onChange,
+  placeholder,
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const pickerRef = useRef(null);
+  const selectedOption = options.find(
+    (option) => option.value === value
+  );
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(searchValue.toLowerCase())
+  );
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  return (
+    <div ref={pickerRef} className="relative">
+      <button
+        id={id}
+        type="button"
+        onClick={() => setOpen((previous) => !previous)}
+        className="input flex w-full items-center justify-between text-left"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={selectedOption ? "text-slate-800" : "text-slate-400"}>
+          {selectedOption?.label || placeholder}
+        </span>
+        <span className="text-slate-400">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Search..."
+            className="input mb-2 h-10 w-full"
+          />
+
+          <div className="max-h-32 overflow-y-auto" role="listbox">
+            {filteredOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  setSearchValue("");
+                }}
+                className={`block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${option.value === value ? "bg-slate-100 font-semibold text-slate-950" : "text-slate-700"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -8,9 +8,9 @@ import {
 
 import Link from "next/link";
 
-import AppShell from "@/components/layout/AppShell";
-import Toast from "@/components/common/Toast";
 import AddMemberPage from "@/app/members/add/page";
+import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -466,6 +466,12 @@ export default function MembersPage() {
   const [typeFilter, setTypeFilter] =
     useState("ALL");
 
+  const [typeSearch, setTypeSearch] =
+    useState("");
+
+  const [typeOpen, setTypeOpen] =
+    useState(false);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -484,12 +490,11 @@ export default function MembersPage() {
     try {
       const result =
         await api.get(
-          `/members${
-            value
-              ? `?search=${encodeURIComponent(
-                  value
-                )}`
-              : ""
+          `/members${value
+            ? `?search=${encodeURIComponent(
+              value
+            )}`
+            : ""
           }`
         );
 
@@ -502,7 +507,7 @@ export default function MembersPage() {
     } catch (err) {
       setError(
         err.message ||
-          "Unable to load members."
+        "Unable to load members."
       );
     } finally {
       setLoading(false);
@@ -559,8 +564,22 @@ export default function MembersPage() {
   function resetFilters() {
     setSearch("");
     setTypeFilter("ALL");
+    setTypeSearch("");
+    setTypeOpen(false);
     loadMembers("");
   }
+
+  const memberTypeOptions = [
+    ["ALL", "All Members"],
+    ["OWNER", "Owners"],
+    ["TENANT", "Tenants"],
+    ["OTHER", "Other"],
+  ];
+
+  const filteredMemberTypeOptions = memberTypeOptions.filter(
+    ([, label]) =>
+      label.toLowerCase().includes(typeSearch.trim().toLowerCase())
+  );
 
   async function deleteMember(member) {
     if (!window.confirm(`Delete ${member.name}?`)) return;
@@ -682,44 +701,45 @@ export default function MembersPage() {
             </div>
 
             <div className="relative lg:w-48">
-
-              <select
-                value={typeFilter}
-                onChange={(event) =>
-                  setTypeFilter(
-                    event.target.value
-                  )
-                }
-                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-3 pr-9 text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+              <button
+                type="button"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-left text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                onClick={() => setTypeOpen((open) => !open)}
+                aria-expanded={typeOpen}
               >
-                <option value="ALL">
-                  All Members
-                </option>
+                <span className="flex items-center justify-between">
+                  {memberTypeOptions.find(([value]) => value === typeFilter)?.[1]}
+                  <span className="text-slate-400">▾</span>
+                </span>
+              </button>
 
-                <option value="OWNER">
-                  Owners
-                </option>
-
-                <option value="TENANT">
-                  Tenants
-                </option>
-
-                <option value="OTHER">
-                  Other
-                </option>
-              </select>
-
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-4 w-4"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </div>
+              {typeOpen && (
+                <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <input
+                    className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
+                    value={typeSearch}
+                    onChange={(event) => setTypeSearch(event.target.value)}
+                    placeholder="Search member type..."
+                    aria-label="Search member type"
+                  />
+                  <div className="mt-2 max-h-40 overflow-y-auto">
+                    {filteredMemberTypeOptions.map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 ${typeFilter === value ? "bg-slate-50 font-semibold" : "text-slate-700"}`}
+                        onClick={() => {
+                          setTypeFilter(value);
+                          setTypeSearch("");
+                          setTypeOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

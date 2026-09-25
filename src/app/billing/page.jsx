@@ -10,8 +10,8 @@ import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -471,8 +471,8 @@ function getBillCurrentCharges(bill) {
 
   return Math.max(
     getBillTotal(bill) -
-      Number(bill.previousOutstanding || 0) -
-      Number(bill.penalty?.amount || 0),
+    Number(bill.previousOutstanding || 0) -
+    Number(bill.penalty?.amount || 0),
     0
   );
 }
@@ -498,12 +498,12 @@ async function downloadBillCanvas(bill) {
         api.get("/charges"),
         roomId && bill.billingMonth
           ? api.get(
-              `/water/readings?roomId=${encodeURIComponent(
-                roomId
-              )}&billingMonth=${encodeURIComponent(
-                bill.billingMonth
-              )}`
-            )
+            `/water/readings?roomId=${encodeURIComponent(
+              roomId
+            )}&billingMonth=${encodeURIComponent(
+              bill.billingMonth
+            )}`
+          )
           : Promise.resolve({ data: [] }),
       ]);
       const settings =
@@ -731,7 +731,7 @@ function StatCard({
             {title}
           </p>
 
-          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-slate-950">
+          <p className="mt-2 wrap-break-word text-xl font-bold leading-tight tracking-tight text-slate-950 sm:text-2xl">
             {value}
           </p>
 
@@ -742,9 +742,8 @@ function StatCard({
         </div>
 
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-            styles[type]
-          }`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${styles[type]
+            }`}
         >
           {icon}
         </div>
@@ -762,6 +761,8 @@ function StatCard({
 function BillCard({
   bill,
   onDetails,
+  onEdit,
+  onDelete,
 }) {
   const total = getBillTotal(bill);
   const paid = Number(
@@ -915,6 +916,22 @@ function BillCard({
           <MoreIcon />
         </button>
 
+        <button
+          type="button"
+          onClick={() => onEdit(bill)}
+          className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Edit
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDelete(bill)}
+          className="rounded-xl border border-red-200 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
+
       </div>
 
     </div>
@@ -948,6 +965,18 @@ export default function BillingPage() {
 
   const [selectedBill, setSelectedBill] =
     useState(null);
+
+  const [editingBill, setEditingBill] =
+    useState(null);
+
+  const [editDueDate, setEditDueDate] =
+    useState("");
+
+  const [editStatus, setEditStatus] =
+    useState("GENERATED");
+
+  const [savingBill, setSavingBill] =
+    useState(false);
 
   /* =======================================================
      LOAD BILLS
@@ -989,7 +1018,7 @@ export default function BillingPage() {
 
       setError(
         err.message ||
-          "Unable to load billing data."
+        "Unable to load billing data."
       );
 
       setBills([]);
@@ -1102,8 +1131,8 @@ export default function BillingPage() {
       const collectionRate =
         totalBilled > 0
           ? (totalCollected /
-              totalBilled) *
-            100
+            totalBilled) *
+          100
           : 0;
 
       return {
@@ -1135,11 +1164,11 @@ export default function BillingPage() {
       (currentMonth) =>
         direction === "previous"
           ? getPreviousMonth(
-              currentMonth
-            )
+            currentMonth
+          )
           : getNextMonth(
-              currentMonth
-            )
+            currentMonth
+          )
     );
   }
 
@@ -1164,6 +1193,71 @@ export default function BillingPage() {
     setStatus("ALL");
   }
 
+  function openEditBill(bill) {
+    setEditingBill(bill);
+    setEditDueDate(
+      bill.dueDate
+        ? new Date(bill.dueDate).toISOString().slice(0, 10)
+        : ""
+    );
+    setEditStatus(bill.status || "GENERATED");
+  }
+
+  async function saveBillEdit(event) {
+    event.preventDefault();
+    setSavingBill(true);
+
+    try {
+      const total = getBillTotal(editingBill);
+      let paymentFields = {};
+
+      if (editStatus === "PAID") {
+        paymentFields = {
+          paidAmount: total,
+          balanceAmount: 0,
+        };
+      }
+
+      if (
+        editStatus === "UNPAID" ||
+        editStatus === "GENERATED" ||
+        editStatus === "OVERDUE"
+      ) {
+        paymentFields = {
+          paidAmount: 0,
+          balanceAmount: total,
+        };
+      }
+
+      await api.put(`/billing/${editingBill._id}`, {
+        dueDate: editDueDate,
+        status: editStatus,
+        ...paymentFields,
+      });
+
+      setEditingBill(null);
+      await loadBills();
+    } catch (err) {
+      setError(err.message || "Unable to update bill.");
+    } finally {
+      setSavingBill(false);
+    }
+  }
+
+  async function deleteBill(bill) {
+    if (!window.confirm(`Delete bill #${bill.billNumber || "-"}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/billing/${bill._id}`);
+      setSelectedBill(null);
+      await loadBills();
+    } catch (err) {
+      setError(err.message || "Unable to delete bill.");
+    }
+  }
+
   async function openBillDetails(bill) {
     try {
       const roomId = bill.roomId?._id || bill.roomId;
@@ -1172,10 +1266,10 @@ export default function BillingPage() {
         api.get("/charges"),
         roomId && month
           ? api.get(
-              `/water/readings?roomId=${encodeURIComponent(
-                roomId
-              )}&billingMonth=${encodeURIComponent(month)}`
-            )
+            `/water/readings?roomId=${encodeURIComponent(
+              roomId
+            )}&billingMonth=${encodeURIComponent(month)}`
+          )
           : Promise.resolve({ data: [] }),
       ]);
 
@@ -1206,16 +1300,16 @@ export default function BillingPage() {
         currentCharges: storedTotal > 0
           ? storedCharges
           : {
-              maintenance: chargeSettings.maintenance,
-              sinkingFund: chargeSettings.sinkingFund,
-              insurance: chargeSettings.insurance,
-              educationFund: chargeSettings.educationFund,
-              parking: chargeSettings.parking,
-              nonOccupancy: chargeSettings.nonOccupancy,
-              rentNoc: chargeSettings.rentNoc,
-              water: waterAmount,
-              other: chargeSettings.other,
-            },
+            maintenance: chargeSettings.maintenance,
+            sinkingFund: chargeSettings.sinkingFund,
+            insurance: chargeSettings.insurance,
+            educationFund: chargeSettings.educationFund,
+            parking: chargeSettings.parking,
+            nonOccupancy: chargeSettings.nonOccupancy,
+            rentNoc: chargeSettings.rentNoc,
+            water: waterAmount,
+            other: chargeSettings.other,
+          },
       });
     } catch {
       setSelectedBill(bill);
@@ -1297,7 +1391,7 @@ export default function BillingPage() {
             STATS
         ================================================= */}
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
 
           <StatCard
             title="Total Bills"
@@ -1540,16 +1634,16 @@ export default function BillingPage() {
 
             {(search ||
               status !== "ALL") && (
-              <button
-                type="button"
-                onClick={
-                  clearFilters
-                }
-                className="text-xs font-semibold text-slate-500 hover:text-slate-900 hover:underline"
-              >
-                Clear Filters
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={
+                    clearFilters
+                  }
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900 hover:underline"
+                >
+                  Clear Filters
+                </button>
+              )}
 
           </div>
 
@@ -1582,15 +1676,15 @@ export default function BillingPage() {
 
               <p className="mt-2 max-w-sm text-sm text-slate-500">
                 {search ||
-                status !== "ALL"
+                  status !== "ALL"
                   ? "Try changing your search or status filter."
                   : `No bills are available for ${formatMonth(
-                      billingMonth
-                    )}.`}
+                    billingMonth
+                  )}.`}
               </p>
 
               {search ||
-              status !== "ALL" ? (
+                status !== "ALL" ? (
                 <button
                   type="button"
                   onClick={
@@ -1634,6 +1728,8 @@ export default function BillingPage() {
                       onDetails={
                         openBillDetails
                       }
+                      onEdit={openEditBill}
+                      onDelete={deleteBill}
                     />
                   )
                 )}
@@ -1708,7 +1804,7 @@ export default function BillingPage() {
                         const paid =
                           Number(
                             bill.paidAmount ||
-                              0
+                            0
                           );
 
                         const balance =
@@ -1740,7 +1836,7 @@ export default function BillingPage() {
                               <p className="mt-1 text-[11px] text-slate-400">
                                 {formatMonth(
                                   bill.billingMonth ||
-                                    billingMonth
+                                  billingMonth
                                 )}
                               </p>
 
@@ -1840,6 +1936,24 @@ export default function BillingPage() {
                                   <MoreIcon />
                                 </button>
 
+                                <button
+                                  type="button"
+                                  title="Edit bill"
+                                  onClick={() => openEditBill(bill)}
+                                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  Edit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  title="Delete bill"
+                                  onClick={() => deleteBill(bill)}
+                                  className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                >
+                                  Delete
+                                </button>
+
                               </div>
 
                             </td>
@@ -1860,6 +1974,74 @@ export default function BillingPage() {
         </div>
 
       </div>
+
+      {editingBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <form
+            onSubmit={saveBillEdit}
+            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">
+                Edit Bill #{editingBill.billNumber || "-"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {getMemberName(editingBill)} · Room {getRoomNumber(editingBill)}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="editBillDueDate" className="label">
+                Due date
+              </label>
+              <input
+                id="editBillDueDate"
+                className="input"
+                type="date"
+                value={editDueDate}
+                onChange={(event) => setEditDueDate(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="editBillStatus" className="label">
+                Status
+              </label>
+              <select
+                id="editBillStatus"
+                className="input"
+                value={editStatus}
+                onChange={(event) => setEditStatus(event.target.value)}
+              >
+                <option value="GENERATED">Generated</option>
+                <option value="UNPAID">Unpaid</option>
+                <option value="PARTIAL">Partial</option>
+                <option value="PAID">Paid</option>
+                <option value="OVERDUE">Overdue</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingBill(null)}
+                disabled={savingBill}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingBill}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingBill ? "Updating..." : "Update Bill"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* =====================================================
           BILL DETAILS MODAL
@@ -2248,6 +2430,22 @@ export default function BillingPage() {
                 >
                   <DownloadIcon />
                   Download Bill
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openEditBill(selectedBill)}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Edit Bill
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => deleteBill(selectedBill)}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50"
+                >
+                  Delete Bill
                 </button>
 
               </div>

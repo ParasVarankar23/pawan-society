@@ -1,27 +1,25 @@
-import WaterReading from "@/models/WaterReading";
-import { connectDB } from "@/lib/mongodb";
 import {
   calculateWaterAmount,
   calculateWaterUnits,
 } from "@/lib/calculations/water";
+import { connectDB } from "@/lib/mongodb";
+import WaterReading from "@/models/WaterReading";
 
 export async function calculateReading({
-  previousReading,
   currentReading,
   ratePerUnit,
 }) {
   const units = calculateWaterUnits(
-    previousReading,
     currentReading
   );
 
   const amount = calculateWaterAmount({
-    previousReading,
     currentReading,
     ratePerUnit,
   }).amount;
 
   return {
+    previousReading: 0,
     units,
     ratePerUnit,
     amount,
@@ -75,4 +73,10 @@ export async function updateReading(id, data) {
       runValidators: true,
     }
   );
+}
+
+export async function deleteReading(id) {
+  await connectDB();
+
+  return WaterReading.findByIdAndDelete(id);
 }

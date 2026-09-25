@@ -6,9 +6,9 @@ import {
 } from "@/app/api/_utils";
 
 import {
+  deleteMember,
   getMemberById,
   updateMember,
-  deleteMember,
 } from "@/services/memberService";
 
 export async function GET(
@@ -17,8 +17,10 @@ export async function GET(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
+
       return json(
-        await getMemberById(params.id)
+        await getMemberById(id)
       );
     })
   );
@@ -30,9 +32,11 @@ export async function PUT(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
+
       return json(
         await updateMember(
-          params.id,
+          id,
           await getJsonBody(request)
         )
       );
@@ -46,8 +50,10 @@ export async function DELETE(
 ) {
   return apiHandler(() =>
     authenticated(async () => {
+      const { id } = await params;
+
       return json(
-        await deleteMember(params.id)
+        await deleteMember(id)
       );
     })
   );

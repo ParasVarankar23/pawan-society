@@ -13,6 +13,34 @@ function formatMoney(value) {
   return `₹${Number(value || 0).toFixed(2)}`;
 }
 
+function formatBillingMonth(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+
+  if (!match) return String(value || "");
+
+  return new Intl.DateTimeFormat("en-IN", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
+}
+
+function formatDate(value) {
+  if (!value) return "";
+
+  const date =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(`${value}T00:00:00`)
+      : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 export async function sendBillEmail({
   email,
   memberName,
@@ -84,7 +112,13 @@ export async function sendBillEmail({
     escapeHtml(roomNumber || "");
 
   const safeMonth =
-    escapeHtml(billingMonth || "");
+    escapeHtml(formatBillingMonth(billingMonth));
+
+  const safeBillDate =
+    escapeHtml(formatDate(billDate));
+
+  const safeDueDate =
+    escapeHtml(formatDate(dueDate));
 
   const html = `
     <!DOCTYPE html>
@@ -175,10 +209,20 @@ export async function sendBillEmail({
             border-radius: 10px;
           }
 
-          .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 7px 0;
+          .total-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .total-table td {
+            padding: 7px 0;
+            vertical-align: middle;
+          }
+
+          .total-table td:last-child {
+            padding-left: 20px;
+            text-align: right;
+            white-space: nowrap;
           }
 
           .grand-total {
@@ -235,12 +279,12 @@ export async function sendBillEmail({
 
               <tr>
                 <td class="label">Bill Date</td>
-                <td>${escapeHtml(billDate || "")}</td>
+                <td>${safeBillDate}</td>
               </tr>
 
               <tr>
                 <td class="label">Due Date</td>
-                <td>${escapeHtml(dueDate || "")}</td>
+                <td>${safeDueDate}</td>
               </tr>
             </table>
 
@@ -339,30 +383,22 @@ export async function sendBillEmail({
             </table>
 
             <div class="total">
+              <table class="total-table" role="presentation">
+                <tr>
+                  <td>Total Outstanding</td>
+                  <td>${formatMoney(totalOutstanding)}</td>
+                </tr>
 
-              <div class="total-row">
-                <span>Total Outstanding</span>
-                <span>
-                  ${formatMoney(totalOutstanding)}
-                </span>
-              </div>
+                <tr>
+                  <td>Amount Paid</td>
+                  <td>${formatMoney(totalOutstanding - balanceAmount)}</td>
+                </tr>
 
-              <div class="total-row">
-                <span>Amount Paid</span>
-                <span>
-                  ${formatMoney(
-                    totalOutstanding - balanceAmount
-                  )}
-                </span>
-              </div>
-
-              <div class="total-row grand-total">
-                <span>Balance Payable</span>
-                <span>
-                  ${formatMoney(balanceAmount)}
-                </span>
-              </div>
-
+                <tr class="grand-total">
+                  <td>Balance Payable</td>
+                  <td>${formatMoney(balanceAmount)}</td>
+                </tr>
+              </table>
             </div>
 
             <p style="margin-top:25px;">

@@ -23,8 +23,9 @@ import {
   YAxis,
 } from "recharts";
 
-import AppShell from "@/components/layout/AppShell";
+import Loader from "@/components/common/Loader";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -272,14 +273,13 @@ function StatCard({
         <div
           className={`
             flex h-11 w-11 shrink-0 items-center justify-center rounded-xl
-            ${
-              variant === "danger"
-                ? "bg-red-50 text-red-600"
-                : variant === "success"
+            ${variant === "danger"
+              ? "bg-red-50 text-red-600"
+              : variant === "success"
                 ? "bg-emerald-50 text-emerald-600"
                 : variant === "warning"
-                ? "bg-amber-50 text-amber-600"
-                : "bg-slate-100 text-slate-700"
+                  ? "bg-amber-50 text-amber-600"
+                  : "bg-slate-100 text-slate-700"
             }
           `}
         >
@@ -450,7 +450,7 @@ export default function DashboardPage() {
         if (mounted) {
           setError(
             err.message ||
-              "Unable to load dashboard."
+            "Unable to load dashboard."
           );
         }
       } finally {
@@ -558,7 +558,7 @@ export default function DashboardPage() {
       />
 
       {loading ? (
-        <DashboardSkeleton />
+        <Loader label="Loading dashboard..." />
       ) : (
         <div className="space-y-6">
 
@@ -835,7 +835,7 @@ export default function DashboardPage() {
                                   "#cbd5e1",
                                 ][
                                   index %
-                                    3
+                                  3
                                 ]}
                               />
                             )
@@ -846,9 +846,9 @@ export default function DashboardPage() {
                           formatter={(
                             value
                           ) => [
-                            value,
-                            "Rooms",
-                          ]}
+                              value,
+                              "Rooms",
+                            ]}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -876,8 +876,8 @@ export default function DashboardPage() {
                                     "#64748b",
                                     "#cbd5e1",
                                   ][
-                                    index %
-                                      3
+                                  index %
+                                  3
                                   ],
                               }}
                             />
@@ -1087,10 +1087,10 @@ export default function DashboardPage() {
                               <p className="mt-0.5 text-[11px] text-slate-400">
                                 {payment.paymentDate
                                   ? new Date(
-                                      payment.paymentDate
-                                    ).toLocaleDateString(
-                                      "en-IN"
-                                    )
+                                    payment.paymentDate
+                                  ).toLocaleDateString(
+                                    "en-IN"
+                                  )
                                   : "-"}
                               </p>
                             </div>

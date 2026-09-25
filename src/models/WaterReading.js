@@ -25,7 +25,7 @@ const WaterReadingSchema = new mongoose.Schema(
 
     previousReading: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
     },
 

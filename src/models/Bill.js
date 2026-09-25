@@ -170,6 +170,25 @@ const BillSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    paymentMode: {
+      type: String,
+      enum: [
+        "CASH",
+        "CHEQUE",
+        "BANK_TRANSFER",
+        "UPI",
+        "GPAY",
+        "PAYTM",
+        "PHONEPE",
+        "NEFT",
+        "RTGS",
+        "IMPS",
+        "OTHER",
+        "",
+      ],
+      default: "",
+    },
   },
   {
     timestamps: true,

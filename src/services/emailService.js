@@ -2,6 +2,7 @@ import { sendBillEmail } from "@/lib/email/billEmail";
 import { sendReceiptEmail } from "@/lib/email/receiptEmail";
 import { sendReminderEmail } from "@/lib/email/reminderEmail";
 import EmailLog from "@/models/EmailLog";
+import Payment from "@/models/Payment";
 
 import { connectDB } from "@/lib/mongodb";
 
@@ -35,9 +36,40 @@ export async function sendBill({
   pdfPath,
 }) {
   try {
+    const currentCharges = bill.currentCharges || {};
+    const penaltyAmount =
+      typeof bill.penalty === "object"
+        ? bill.penalty?.amount || 0
+        : bill.penalty || 0;
+
+    console.log("[email] bill values forwarded", {
+      billNumber: bill.billNumber,
+      billingMonth: bill.billingMonth,
+      currentCharges,
+      penalty: penaltyAmount,
+      totalOutstanding: bill.totalOutstanding,
+      balanceAmount: bill.balanceAmount,
+    });
+
     const result = await sendBillEmail({
-      bill,
-      recipient,
+      email: recipient,
+      memberName:
+        bill.memberId?.name ||
+        bill.memberName ||
+        "Member",
+      roomNumber:
+        bill.roomId?.roomNumber ||
+        bill.roomNumber ||
+        "",
+      billNumber: bill.billNumber,
+      billingMonth: bill.billingMonth,
+      billDate: bill.billDate,
+      dueDate: bill.dueDate,
+      previousOutstanding: bill.previousOutstanding,
+      currentCharges,
+      penalty: penaltyAmount,
+      totalOutstanding: bill.totalOutstanding,
+      balanceAmount: bill.balanceAmount,
       pdfPath,
     });
 
@@ -72,6 +104,15 @@ export async function sendReceipt({
   pdfPath,
 }) {
   try {
+    let billingMonth = receipt.billingMonth || "";
+
+    if (!billingMonth && receipt.paymentId) {
+      const payment = await Payment.findById(receipt.paymentId)
+        .populate("billId", "billingMonth")
+        .lean();
+      billingMonth = payment?.billId?.billingMonth || "";
+    }
+
     const result = await sendReceiptEmail({
       email: recipient,
       memberName:
@@ -83,6 +124,7 @@ export async function sendReceipt({
       amount: receipt.amount,
       paymentMode:
         receipt.paymentMode,
+      billingMonth,
       pdfPath,
     });
 

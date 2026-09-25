@@ -22,7 +22,7 @@ export async function getNextBillNumber(
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
       }
     );

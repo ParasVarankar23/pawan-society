@@ -8,8 +8,8 @@ import {
 
 import Link from "next/link";
 
-import AppShell from "@/components/layout/AppShell";
 import Toast from "@/components/common/Toast";
+import AppShell from "@/components/layout/AppShell";
 import api from "@/lib/apiClient";
 
 /* =========================================================
@@ -189,7 +189,7 @@ function StatCard({
    MOBILE CARD
 ========================================================= */
 
-function ReadingCard({ reading }) {
+function ReadingCard({ reading, onEdit, onDelete }) {
   const room =
     reading.roomId?.roomNumber || "-";
 
@@ -217,16 +217,6 @@ function ReadingCard({ reading }) {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-[9px] uppercase tracking-wide text-slate-400">
-            Previous
-          </p>
-
-          <p className="mt-1 text-sm font-bold text-slate-800">
-            {reading.previousReading ?? 0}
-          </p>
-        </div>
 
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-[9px] uppercase tracking-wide text-slate-400">
@@ -271,6 +261,23 @@ function ReadingCard({ reading }) {
           </p>
         </div>
       </div>
+
+      <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+        <button
+          type="button"
+          onClick={() => onEdit(reading)}
+          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(reading)}
+          className="flex-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -295,6 +302,21 @@ export default function WaterPage() {
   const [error, setError] =
     useState("");
 
+  const [editingReading, setEditingReading] =
+    useState(null);
+
+  const [editCurrentReading, setEditCurrentReading] =
+    useState("");
+
+  const [editReadingDate, setEditReadingDate] =
+    useState("");
+
+  const [editRemarks, setEditRemarks] =
+    useState("");
+
+  const [savingEdit, setSavingEdit] =
+    useState(false);
+
   async function loadReadings() {
     setLoading(true);
     setError("");
@@ -314,7 +336,7 @@ export default function WaterPage() {
     } catch (err) {
       setError(
         err.message ||
-          "Unable to load water readings."
+        "Unable to load water readings."
       );
     } finally {
       setLoading(false);
@@ -324,6 +346,64 @@ export default function WaterPage() {
   useEffect(() => {
     loadReadings();
   }, [month]);
+
+  function openEditReading(reading) {
+    setEditingReading(reading);
+    setEditCurrentReading(
+      String(reading.currentReading ?? "")
+    );
+    setEditReadingDate(
+      reading.readingDate
+        ? new Date(reading.readingDate)
+          .toISOString()
+          .slice(0, 10)
+        : ""
+    );
+    setEditRemarks(reading.remarks || "");
+  }
+
+  async function saveEditReading(event) {
+    event.preventDefault();
+
+    if (!editCurrentReading || Number(editCurrentReading) < 0) {
+      setError("Enter a valid current reading.");
+      return;
+    }
+
+    setSavingEdit(true);
+
+    try {
+      await api.put(
+        `/water/readings/${editingReading._id}`,
+        {
+          currentReading: Number(editCurrentReading),
+          ratePerUnit: editingReading.ratePerUnit,
+          readingDate: editReadingDate,
+          remarks: editRemarks.trim(),
+        }
+      );
+
+      setEditingReading(null);
+      await loadReadings();
+    } catch (err) {
+      setError(err.message || "Unable to update water reading.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteReading(reading) {
+    if (!window.confirm(`Delete the reading for Room ${reading.roomId?.roomNumber || "-"}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/water/readings/${reading._id}`);
+      await loadReadings();
+    } catch (err) {
+      setError(err.message || "Unable to delete water reading.");
+    }
+  }
 
   const filteredReadings = useMemo(() => {
     if (!search.trim()) {
@@ -560,6 +640,8 @@ export default function WaterPage() {
                     <ReadingCard
                       key={reading._id}
                       reading={reading}
+                      onEdit={openEditReading}
+                      onDelete={deleteReading}
                     />
                   )
                 )}
@@ -582,10 +664,6 @@ export default function WaterPage() {
                       </th>
 
                       <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
-                        Previous
-                      </th>
-
-                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
                         Current
                       </th>
 
@@ -603,6 +681,10 @@ export default function WaterPage() {
 
                       <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
                         Status
+                      </th>
+
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500">
+                        Actions
                       </th>
 
                     </tr>
@@ -633,11 +715,6 @@ export default function WaterPage() {
                               "-"}
                           </td>
 
-                          <td className="px-5 py-4 text-right text-slate-600">
-                            {reading.previousReading ??
-                              0}
-                          </td>
-
                           <td className="px-5 py-4 text-right font-medium text-slate-800">
                             {reading.currentReading ??
                               0}
@@ -647,7 +724,7 @@ export default function WaterPage() {
                             <span className="font-bold text-blue-700">
                               {Number(
                                 reading.units ||
-                                  0
+                                0
                               ).toFixed(2)}
                             </span>
                           </td>
@@ -670,6 +747,25 @@ export default function WaterPage() {
                             </span>
                           </td>
 
+                          <td className="px-5 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditReading(reading)}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteReading(reading)}
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+
                         </tr>
                       )
                     )}
@@ -681,6 +777,83 @@ export default function WaterPage() {
           )}
         </div>
       </div>
+
+      {editingReading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <form
+            onSubmit={saveEditReading}
+            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">
+                Edit Water Reading
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Room {editingReading.roomId?.roomNumber || "-"} · {editingReading.memberId?.name || "-"}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="editCurrentReading" className="label">
+                Current reading *
+              </label>
+              <input
+                id="editCurrentReading"
+                className="input"
+                type="number"
+                min="0"
+                step="0.01"
+                value={editCurrentReading}
+                onChange={(event) => setEditCurrentReading(event.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="editReadingDate" className="label">
+                Reading date
+              </label>
+              <input
+                id="editReadingDate"
+                className="input"
+                type="date"
+                value={editReadingDate}
+                onChange={(event) => setEditReadingDate(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="editRemarks" className="label">
+                Remarks
+              </label>
+              <input
+                id="editRemarks"
+                className="input"
+                value={editRemarks}
+                onChange={(event) => setEditRemarks(event.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingReading(null)}
+                disabled={savingEdit}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingEdit}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingEdit ? "Updating..." : "Update Reading"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </AppShell>
   );
 }
